@@ -9,6 +9,7 @@ use App\Modules\Advisor\Http\Controllers\BonusController;
 use App\Modules\Advisor\Http\Controllers\DataQualityController;
 use App\Modules\Advisor\Http\Controllers\DecisionController;
 use App\Modules\Advisor\Http\Controllers\ImportController;
+use App\Modules\Advisor\Http\Controllers\ProductForecastController;
 use App\Modules\Advisor\Http\Controllers\ReportController;
 use App\Modules\Advisor\Http\Controllers\SalesMetricsController;
 use App\Modules\AI\Http\Controllers\AskController;
@@ -91,6 +92,7 @@ Route::middleware(['throttle:api', 'auth:sanctum', 'tenant.resolve', 'tenant.mem
         Route::post('/reconciliations/detailed', [DataQualityController::class, 'detailed'])->middleware(['permission:advisor.data.review', 'throttle:imports', 'idempotency']);
         Route::post('/reconciliations', [DataQualityController::class, 'store'])->middleware(['permission:advisor.data.review', 'idempotency']);
     });
+    Route::post('/advisor/product-forecast', [ProductForecastController::class, 'analyze'])->middleware(['permission:advisor.forecast.run', 'permission:advisor.sales.read', 'permission:data.sensitive.read', 'idempotency', 'throttle:imports']);
     Route::get('/advisor/sales/metrics', [SalesMetricsController::class, 'metrics'])->middleware(['permission:advisor.sales.read', 'permission:data.sensitive.read']);
     Route::get('/advisor/sales/invoices', [SalesMetricsController::class, 'invoices'])->middleware(['permission:advisor.sales.read', 'permission:data.sensitive.read']);
     Route::prefix('advisor/imports')->middleware(['permission:data.import.manage', 'permission:data.sensitive.read'])->group(function () {

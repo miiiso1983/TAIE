@@ -34,10 +34,10 @@ class DataQualityController extends Controller
     public function catalog(Request $r): mixed
     {
         $this->ensureReady();
-        $d = $r->validate(['kind' => ['required', 'in:products,areas,customer_locations,invoice_lines'], 'page' => ['sometimes', 'integer', 'min:1']]);
+        $d = $r->validate(['kind' => ['required', 'in:products,areas,customer_locations,invoice_lines'], 'page' => ['sometimes', 'integer', 'min:1'], 'search' => ['sometimes', 'string', 'max:100']]);
         $data = match ($d['kind']) {
-            'products' => Product::query()->orderBy('code')->paginate(50)->through(fn ($p) => ['uuid' => $p->uuid, 'code' => $p->code, 'name' => $p->name, 'base_unit' => $p->base_unit]),
-            'areas' => Area::query()->orderBy('code')->paginate(50)->through(fn ($a) => ['uuid' => $a->uuid, 'code' => $a->code, 'country_code' => $a->country_code, 'province_name' => $a->province_name, 'city_name' => $a->city_name]),
+            'products' => Product::query()->when($d['search'] ?? null, fn ($q, $s) => $q->where(fn ($q) => $q->where('code', 'like', '%'.$s.'%')->orWhere('name', 'like', '%'.$s.'%')))->orderBy('code')->paginate(50)->through(fn ($p) => ['uuid' => $p->uuid, 'code' => $p->code, 'name' => $p->name, 'base_unit' => $p->base_unit]),
+            'areas' => Area::query()->when($d['search'] ?? null, fn ($q, $s) => $q->where(fn ($q) => $q->where('code', 'like', '%'.$s.'%')->orWhere('province_name', 'like', '%'.$s.'%')->orWhere('city_name', 'like', '%'.$s.'%')))->orderBy('code')->paginate(50)->through(fn ($a) => ['uuid' => $a->uuid, 'code' => $a->code, 'country_code' => $a->country_code, 'province_name' => $a->province_name, 'city_name' => $a->city_name]),
             'customer_locations' => CustomerArea::query()->join('sales_customers AS c', function ($join) {
                 $join->on('c.id', 'advisor_customer_areas.customer_id')->on('c.tenant_id', 'advisor_customer_areas.tenant_id');
             })->join('advisor_areas AS a', function ($join) {
@@ -80,7 +80,7 @@ class DataQualityController extends Controller
     public function index(Request $r, ReconciliationService $service): mixed
     {
         $this->ensureReady();
-        $r->validate(['page' => ['sometimes', 'integer', 'min:1']]);
+        $r->validate(['page' => ['sometimes', 'integer', 'min:1'], 'search' => ['sometimes', 'string', 'max:100']]);
 
         return response()->json(['data' => Reconciliation::query()->latest('id')->paginate(20)->through(fn ($r) => $service->summary($r))]);
     }
@@ -95,7 +95,7 @@ class DataQualityController extends Controller
     public function differences(Request $r, string $uuid): mixed
     {
         $this->ensureReady();
-        $d = $r->validate(['page' => ['sometimes', 'integer', 'min:1'], 'kind' => ['sometimes', 'in:invoices,receipts,returns'], 'type' => ['sometimes', 'in:missing_in_teami,unexpected_in_teami,changed_fields']]);
+        $d = $r->validate(['page' => ['sometimes', 'integer', 'min:1'], 'search' => ['sometimes', 'string', 'max:100'], 'kind' => ['sometimes', 'in:invoices,receipts,returns'], 'type' => ['sometimes', 'in:missing_in_teami,unexpected_in_teami,changed_fields']]);
         $report = Reconciliation::query()->where('uuid', $uuid)->where('method', 'record_matching')->firstOrFail();
         $rows = collect($report->snapshot_encrypted['record_differences'])->filter(fn ($x) => (! isset($d['kind']) || $x['kind'] === $d['kind']) && (! isset($d['type']) || $x['type'] === $d['type']))->values();
         $page = (int) ($d['page'] ?? 1);
