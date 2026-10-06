@@ -262,4 +262,58 @@ class AdvisorBonusTest extends TestCase
         $this->withHeader('Idempotency-Key', 'new-review')->postJson('/api/advisor/bonus-requests/'.$id.'/evaluate')->assertOk();
         $this->decide($id, 'reject')->assertOk()->assertJsonPath('data.overridden', false);
     }
+
+    private function stage(string $id, int $stage, string $decision = 'approve', ?array $detail = null)
+    {
+        $detail ??= $this->getJson('/api/advisor/bonus-requests/'.$id)->assertOk()->json('data');
+
+        return $this->withHeader('Idempotency-Key', Str::uuid())->postJson('/api/advisor/bonus-requests/'.$id.'/decision', ['decision' => $decision, 'reason' => 'Independent reviewer checked all recorded evidence', 'reviewed_at' => $detail['evaluated_at'], 'review_token' => $detail['review_token'], 'approval_stage' => $stage]);
+    }
+
+    public function test_multistage_approval_needs_separate_actors_rights_and_current_stage(): void
+    {
+        [$t,$u,$e] = $this->fixture();
+        $id = $this->request($e, $this->policy('enforced', ['approval_steps' => 3]));
+        $this->stage($id, 1)->assertForbidden();
+        $this->actor($t);
+        $this->stage($id, 1)->assertOk()->assertJsonPath('data.status', 'pending')->assertJsonPath('data.approval.completed', 1);
+        $this->stage($id, 2)->assertForbidden();
+        $this->actor($t, [...self::PERMISSIONS, 'advisor.bonus.approve.stage2']);
+        $this->stage($id, 1)->assertConflict();
+        $this->stage($id, 2)->assertOk()->assertJsonPath('data.status', 'pending');
+        $this->actor($t, [...self::PERMISSIONS, 'advisor.bonus.approve.stage3']);
+        $this->stage($id, 3)->assertOk()->assertJsonPath('data.status', 'approved')->assertJsonPath('data.approval.completed', 3);
+        $this->getJson('/api/advisor/bonus-requests/'.$id)->assertOk()->assertJsonCount(3, 'data.approval_history');
+        $this->assertStringNotContainsString('Independent reviewer', DB::table('advisor_bonus_approvals')->value('reason_encrypted'));
+    }
+
+    public function test_changed_data_invalidates_all_earlier_stage_approvals(): void
+    {
+        [$t,$u,$e,$batch,$invoice] = $this->fixture();
+        $id = $this->request($e, $this->policy('enforced', ['approval_steps' => 2]));
+        $this->actor($t);
+        $this->stage($id, 1)->assertOk();
+        $old = $this->getJson('/api/advisor/bonus-requests/'.$id)->json('data');
+        $this->actor($t, [...self::PERMISSIONS, 'advisor.bonus.approve.stage2']);
+        $invoice = SalesInvoice::query()->findOrFail($invoice->id);
+        $invoice->update(['net_amount_minor' => 10100]);
+        $this->stage($id, 2, 'approve', $old)->assertConflict();
+        $this->withHeader('Idempotency-Key', Str::uuid())->postJson('/api/advisor/bonus-requests/'.$id.'/evaluate', [])->assertOk()->assertJsonPath('data.approval.completed', 0);
+        $this->getJson('/api/advisor/bonus-requests/'.$id)->assertJsonPath('data.approval_history.0.current', false);
+        $this->stage($id, 1)->assertOk()->assertJsonPath('data.status', 'pending');
+    }
+
+    public function test_second_stage_can_reject_but_cannot_skip_required_permission(): void
+    {
+        [$t,$u,$e] = $this->fixture();
+        $id = $this->request($e, $this->policy('enforced', ['approval_steps' => 2]));
+        $this->actor($t);
+        $this->stage($id, 1)->assertOk();
+        $this->actor($t);
+        $this->stage($id, 2, 'reject')->assertForbidden();
+        $this->actor($t, [...self::PERMISSIONS, 'advisor.bonus.approve.stage2']);
+        $this->stage($id, 2, 'reject')->assertOk()->assertJsonPath('data.status', 'rejected');
+        $this->stage($id, 2)->assertConflict();
+        $this->assertDatabaseCount('hr_payroll_runs', 0);
+    }
 }
