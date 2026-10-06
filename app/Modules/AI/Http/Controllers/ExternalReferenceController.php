@@ -9,6 +9,7 @@ use App\Models\Tenant;
 use App\Modules\AI\Jobs\IndexKnowledgeDocument;
 use App\Modules\AI\Models\KnowledgeDocument;
 use App\Modules\AI\Models\KnowledgeSource;
+use App\Modules\AI\Services\ExternalReferenceCatalog;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
@@ -20,7 +21,7 @@ class ExternalReferenceController extends Controller
 
     private function references(): array
     {
-        return json_decode(file_get_contents(resource_path('data/external-references.json')), true, 512, JSON_THROW_ON_ERROR);
+        return app(ExternalReferenceCatalog::class)->all();
     }
 
     public function index(TenantContext $context): mixed
@@ -30,7 +31,7 @@ class ExternalReferenceController extends Controller
         $items = array_map(function ($ref) use ($saved, $activity) {
             $source = $saved->get($ref['key']);
 
-            return [...$ref, 'recommended' => in_array('general', $ref['activities'], true) || in_array($activity, $ref['activities'], true), 'source_uuid' => $source?->uuid, 'status' => $source?->status ?? 'not_added'];
+            return [...$ref, 'catalog_revision' => app(ExternalReferenceCatalog::class)->revision($ref), 'review_status' => app(ExternalReferenceCatalog::class)->reviewStatus($ref, $source?->external_metadata), 'review_due_at' => $source?->external_metadata['review_due_at'] ?? null, 'recommended' => in_array('general', $ref['activities'], true) || in_array($activity, $ref['activities'], true), 'source_uuid' => $source?->uuid, 'status' => $source?->status ?? 'not_added'];
         }, $this->references());
 
         return response()->json(['data' => ['activity' => $activity, 'activities' => collect(self::ACTIVITIES)->map(fn ($name, $key) => ['value' => $key, 'label' => $name])->values(), 'references' => $items]]);
@@ -59,9 +60,13 @@ class ExternalReferenceController extends Controller
             abort_if(! KnowledgeSource::query()->where('reference_key', $ref['key'])->exists() && KnowledgeSource::query()->where('name', 'مرجع خارجي: '.$ref['title'])->exists(), 409, 'A company source already uses this reserved reference name.');
             $source = KnowledgeSource::query()->firstOrCreate(['reference_key' => $ref['key']], ['uuid' => (string) Str::uuid(), 'name' => 'مرجع خارجي: '.$ref['title'], 'sensitivity' => 'internal', 'created_by' => $r->user()->id, 'origin' => 'external_reference', 'status' => 'active']);
             abort_unless($source->origin === 'external_reference', 409);
+            $metadata['catalog_revision'] = app(ExternalReferenceCatalog::class)->revision($ref);
+            $metadata['tenant_reviewed_at'] = now()->toISOString();
+            $metadata['review_due_at'] = now()->addMonthsNoOverflow(6)->toDateString();
             $source->update(['status' => 'active', 'external_metadata' => $metadata, 'external_review_note_encrypted' => $d['review_note']]);
-            $body = "مرجع خارجي إرشادي وليس سياسة معتمدة للشركة أو نصاً للقانون العراقي.\nالعنوان: ".$ref['title']."\nالناشر: ".$ref['publisher']."\nالرابط: ".$ref['url']."\nتاريخ مراجعة الملخص: ".$ref['reviewed_at']."\nالمحتوى ملخص تحريري موجز وليس النص الكامل للمصدر.\n".$ref['summary'];
+            $body = "مرجع خارجي إرشادي وليس سياسة معتمدة للشركة أو نصاً للقانون العراقي.\nالعنوان: ".$ref['title']."\nالناشر: ".$ref['publisher']."\nالرابط: ".$ref['url']."\nتاريخ مراجعة الملخص: ".$ref['reviewed_at']."\nالمحتوى ملخص تحريري موجز وليس النص الكامل للمصدر.\n".$ref['summary']."\nنسخة المرجع: ".$metadata['catalog_revision'];
             $document = KnowledgeDocument::query()->firstOrCreate(['source_id' => $source->id, 'content_hash' => hash('sha256', $body)], ['uuid' => (string) Str::uuid(), 'title' => $ref['title'].' — ملخص مرجعي', 'body_encrypted' => $body, 'status' => 'queued', 'created_by' => $r->user()->id]);
+            $source->update(['external_metadata' => [...$metadata, 'current_document_uuid' => $document->uuid]]);
             $dispatch = $document->wasRecentlyCreated || $document->status === 'failed';
             if ($document->status === 'failed') {
                 $document->update(['status' => 'queued', 'processing_error' => null]);

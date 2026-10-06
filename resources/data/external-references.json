@@ -119,5 +119,70 @@
     "reviewed_at": "2026-10-07",
     "jurisdiction": "international",
     "content_type": "editorial_summary"
+  },
+  {
+    "key": "nist-csf",
+    "title": "إدارة المخاطر الأمنية للخدمات الرقمية",
+    "publisher": "NIST",
+    "url": "https://www.nist.gov/cyberframework",
+    "category": "policies",
+    "activities": [
+      "technology",
+      "services"
+    ],
+    "summary": "إطار عام لتنظيم فهم المخاطر الأمنية وتحسين إدارتها، مع موارد بدء وملفات تعريف للمؤسسة. يساعد في تطوير إجراءات الأمن للخدمات الرقمية؛ ليس شهادة امتثال أو بديلاً عن المتطلبات المحلية.",
+    "published_at": null,
+    "reviewed_at": "2026-10-07",
+    "jurisdiction": "international",
+    "content_type": "editorial_summary"
+  },
+  {
+    "key": "oecd-responsible-business",
+    "title": "السلوك المسؤول ومراجعة سلسلة التوريد",
+    "publisher": "OECD",
+    "url": "https://www.oecd.org/en/publications/oecd-guidelines-for-multinational-enterprises-on-responsible-business-conduct_81f92357-en.html",
+    "category": "policies",
+    "activities": [
+      "distribution",
+      "retail",
+      "services"
+    ],
+    "summary": "توصيات حكومية للشركات متعددة الجنسيات حول حقوق الإنسان والعمل والبيئة والنزاهة ومصالح المستهلكين والعناية بسلسلة التوريد. يمكن الاسترشاد بها عند مراجعة الموردين؛ لا تعني اعتماد سياسة الشركة أو امتثالها.",
+    "published_at": "2023-06-08",
+    "reviewed_at": "2026-10-07",
+    "jurisdiction": "international",
+    "content_type": "editorial_summary"
+  },
+  {
+    "key": "oecd-ecommerce",
+    "title": "حماية العملاء في التجارة الإلكترونية",
+    "publisher": "OECD",
+    "url": "https://www.oecd.org/en/publications/oecd-recommendation-of-the-council-on-consumer-protection-in-e-commerce_9789264255258-en.html",
+    "category": "customers",
+    "activities": [
+      "retail",
+      "technology",
+      "services"
+    ],
+    "summary": "مرجع لمراجعة الإفصاح عن معلومات البيع وحماية الدفع وتسوية النزاعات والتعامل مع بيانات المستهلك والتقييمات. يساعد في تطوير إجراءات خدمة العملاء والتجارة الإلكترونية مع مراجعة التشريع المحلي.",
+    "published_at": "2016-05-12",
+    "reviewed_at": "2026-10-07",
+    "jurisdiction": "international",
+    "content_type": "editorial_summary"
+  },
+  {
+    "key": "cipd-coaching",
+    "title": "التوجيه والتدريب لتطوير الفريق",
+    "publisher": "CIPD",
+    "url": "https://www.cipd.org/en/knowledge/factsheets/coaching-mentoring-factsheet/",
+    "category": "team",
+    "activities": [
+      "general"
+    ],
+    "summary": "التوجيه والتدريب يدعمان تطوير المهارات والأداء عندما يرتبطان باحتياج وأهداف محددة. اختر أسلوب التطوير والمدرب بحسب ملاءمتهما، وراجع النتائج؛ لا تفترض أن التدريب نفسه يناسب كل موظف.",
+    "published_at": "2025-08-11",
+    "reviewed_at": "2026-10-07",
+    "jurisdiction": "international",
+    "content_type": "editorial_summary"
   }
 ]

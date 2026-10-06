@@ -51,7 +51,7 @@ class ExternalReferenceTest extends TestCase
     public function test_activity_filters_reference_recommendations_without_activating_sources(): void
     {
         [$t] = $this->actor();
-        $this->getJson('/api/knowledge/external-references')->assertOk()->assertJsonCount(8, 'data.references');
+        $this->getJson('/api/knowledge/external-references')->assertOk()->assertJsonCount(12, 'data.references');
         $this->patchJson('/api/knowledge/business-activity', ['activity' => 'pharma'], ['Idempotency-Key' => (string) Str::uuid()])->assertOk();
         $this->assertSame('pharma', $t->fresh()->business_activity);
         $rows = $this->getJson('/api/knowledge/external-references')->json('data.references');
@@ -118,5 +118,59 @@ class ExternalReferenceTest extends TestCase
         $source->update(['status' => 'disabled']);
         $answer = $service->answer($u, 'كيف أطور أداء الفريق؟');
         $this->assertSame([], $answer['citations']);
+    }
+
+    public function test_catalog_revisions_require_review_and_expiry_can_be_renewed_without_duplicate_documents(): void
+    {
+        [$tenant] = $this->actor();
+        $this->activate()->assertStatus(202);
+        app(TenantContext::class)->setTenant($tenant);
+        $source = KnowledgeSource::query()->firstOrFail();
+        $metadata = $source->external_metadata;
+        $source->update(['external_metadata' => [...$metadata, 'catalog_revision' => str_repeat('0', 64)]]);
+        $rows = $this->getJson('/api/knowledge/external-references')->assertOk()->json('data.references');
+        $this->assertSame('update_available', collect($rows)->firstWhere('key', 'cipd-performance')['review_status']);
+        $this->activate()->assertStatus(202);
+        app(TenantContext::class)->setTenant($tenant);
+        $source->refresh();
+        $source->update(['external_metadata' => [...$source->external_metadata, 'review_due_at' => now()->subDay()->toDateString()]]);
+        $rows = $this->getJson('/api/knowledge/external-references')->json('data.references');
+        $this->assertSame('review_due', collect($rows)->firstWhere('key', 'cipd-performance')['review_status']);
+        $this->activate()->assertStatus(202);
+        $rows = $this->getJson('/api/knowledge/external-references')->json('data.references');
+        $this->assertSame('current', collect($rows)->firstWhere('key', 'cipd-performance')['review_status']);
+        $this->assertDatabaseCount('knowledge_documents', 1);
+        Queue::assertPushed(IndexKnowledgeDocument::class, 1);
+    }
+
+    public function test_rag_uses_only_current_document_and_excludes_expired_reviews(): void
+    {
+        [$tenant, $user] = $this->actor();
+        $this->activate();
+        app(TenantContext::class)->setTenant($tenant);
+        $source = KnowledgeSource::query()->firstOrFail();
+        $current = $source->documents()->firstOrFail();
+        $current->update(['status' => 'indexed']);
+        $old = $current->replicate(['uuid', 'content_hash']);
+        $old->uuid = (string) Str::uuid();
+        $old->content_hash = hash('sha256', 'old summary');
+        $old->save();
+        foreach ([$old, $current] as $doc) {
+            KnowledgeChunk::query()->create(['document_id' => $doc->id, 'chunk_index' => 0, 'content_encrypted' => 'مقطع مراجعة الفريق', 'embedding' => [1, 0], 'embedding_model' => 'test-model']);
+        }
+        $this->mock(EmbeddingProviderInterface::class, function ($m) {
+            $m->shouldReceive('embed')->twice()->andReturn([1, 0]);
+            $m->shouldReceive('model')->twice()->andReturn('test-model');
+        });
+        $this->mock(LLMProviderInterface::class, function ($m) {
+            $m->shouldReceive('complete')->once()->andReturn(['content' => 'مرجع للمراجعة [1]', 'usage' => []]);
+        });
+        $service = app(RagAnswerService::class);
+        $answer = $service->answer($user, 'مراجعة الفريق');
+        $this->assertCount(1, $answer['citations']);
+        $this->assertSame($current->uuid, $answer['citations'][0]['document_uuid']);
+        $source->update(['external_metadata' => [...$source->external_metadata, 'review_due_at' => now()->subDay()->toDateString()]]);
+        $this->assertSame([], $service->answer($user, 'مراجعة الفريق')['citations']);
+        $this->assertDatabaseCount('knowledge_documents', 2);
     }
 }

@@ -54,6 +54,17 @@ class RagAnswerService
                     }
                 });
             })->with(['document.source'])->limit(5000)->get();
+        // Retain archived summaries, but retrieve only the reviewed current revision.
+        $candidates = $candidates->filter(function ($chunk) {
+            $source = $chunk->document->source;
+            if ($source->origin !== 'external_reference') {
+                return true;
+            }
+            $metadata = $source->external_metadata ?? [];
+
+            return ! app(ExternalReferenceCatalog::class)->expired($metadata)
+                && (! isset($metadata['current_document_uuid']) || $metadata['current_document_uuid'] === $chunk->document->uuid);
+        });
         $ranked = $candidates->map(fn ($chunk) => ['chunk' => $chunk, 'score' => $this->cosine($queryVector, $chunk->embedding)])
             ->filter(fn ($item) => $item['score'] >= (float) config('teami_ai.minimum_similarity', 0.1))
             ->sortByDesc('score')->take((int) config('teami_ai.retrieval_limit', 6))->values();
