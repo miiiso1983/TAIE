@@ -1,0 +1,138 @@
+{
+  "dataset_version": "cosit_governorate_estimates_2023_v1",
+  "measurement_year": 2023,
+  "verified_at": "2026-10-07",
+  "publisher": "هيأة الإحصاء ونظم المعلومات الجغرافية — العراق",
+  "url": "https://www.cosit.gov.iq/ar/2013-01-31-08-43-38",
+  "scope": "governorate",
+  "type": "population_estimate",
+  "notice": "تقديرات 2023 من جدول رسمي، وليست أحدث تعداد. لا تعني سكان مدينة أو منطقة خدمة أو حجم الطلب. لا يجري ربطها آلياً بمناطق الشركة أو ضربها بالمبيعات. تغيير الحدود أو تعريف المحافظة يحتاج مراجعة مستقلة.",
+  "rows": [
+    {
+      "dataset_code": "DHK",
+      "name": "دهوك",
+      "population": 1468805,
+      "year": 2023,
+      "scope": "governorate"
+    },
+    {
+      "dataset_code": "NIN",
+      "name": "نينوى",
+      "population": 4238733,
+      "year": 2023,
+      "scope": "governorate"
+    },
+    {
+      "dataset_code": "SUL",
+      "name": "السليمانية",
+      "population": 2457189,
+      "year": 2023,
+      "scope": "governorate"
+    },
+    {
+      "dataset_code": "KIR",
+      "name": "كركوك",
+      "population": 1815834,
+      "year": 2023,
+      "scope": "governorate"
+    },
+    {
+      "dataset_code": "ERB",
+      "name": "اربيل",
+      "population": 2107755,
+      "year": 2023,
+      "scope": "governorate"
+    },
+    {
+      "dataset_code": "DYL",
+      "name": "ديالى",
+      "population": 1830503,
+      "year": 2023,
+      "scope": "governorate"
+    },
+    {
+      "dataset_code": "ANB",
+      "name": "الانبار",
+      "population": 2013300,
+      "year": 2023,
+      "scope": "governorate"
+    },
+    {
+      "dataset_code": "BGD",
+      "name": "بغداد",
+      "population": 9265213,
+      "year": 2023,
+      "scope": "governorate"
+    },
+    {
+      "dataset_code": "BAB",
+      "name": "بابل",
+      "population": 2346696,
+      "year": 2023,
+      "scope": "governorate"
+    },
+    {
+      "dataset_code": "KAR",
+      "name": "كربلاء",
+      "population": 1384941,
+      "year": 2023,
+      "scope": "governorate"
+    },
+    {
+      "dataset_code": "WAS",
+      "name": "واسط",
+      "population": 1566789,
+      "year": 2023,
+      "scope": "governorate"
+    },
+    {
+      "dataset_code": "SAL",
+      "name": "صلاح الدين",
+      "population": 1812822,
+      "year": 2023,
+      "scope": "governorate"
+    },
+    {
+      "dataset_code": "NAJ",
+      "name": "النجف",
+      "population": 1672312,
+      "year": 2023,
+      "scope": "governorate"
+    },
+    {
+      "dataset_code": "QAD",
+      "name": "القادسية",
+      "population": 1467127,
+      "year": 2023,
+      "scope": "governorate"
+    },
+    {
+      "dataset_code": "MUT",
+      "name": "المثنى",
+      "population": 925440,
+      "year": 2023,
+      "scope": "governorate"
+    },
+    {
+      "dataset_code": "DHI",
+      "name": "ذي قار",
+      "population": 2380943,
+      "year": 2023,
+      "scope": "governorate"
+    },
+    {
+      "dataset_code": "MAY",
+      "name": "ميسان",
+      "population": 1264427,
+      "year": 2023,
+      "scope": "governorate"
+    },
+    {
+      "dataset_code": "BAS",
+      "name": "البصرة",
+      "population": 3305189,
+      "year": 2023,
+      "scope": "governorate"
+    }
+  ]
+}

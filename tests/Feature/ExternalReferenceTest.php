@@ -51,7 +51,7 @@ class ExternalReferenceTest extends TestCase
     public function test_activity_filters_reference_recommendations_without_activating_sources(): void
     {
         [$t] = $this->actor();
-        $this->getJson('/api/knowledge/external-references')->assertOk()->assertJsonCount(12, 'data.references');
+        $this->getJson('/api/knowledge/external-references')->assertOk()->assertJsonCount(14, 'data.references');
         $this->patchJson('/api/knowledge/business-activity', ['activity' => 'pharma'], ['Idempotency-Key' => (string) Str::uuid()])->assertOk();
         $this->assertSame('pharma', $t->fresh()->business_activity);
         $rows = $this->getJson('/api/knowledge/external-references')->json('data.references');

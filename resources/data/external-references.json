@@ -184,5 +184,35 @@
     "reviewed_at": "2026-10-07",
     "jurisdiction": "international",
     "content_type": "editorial_summary"
+  },
+  {
+    "key": "iraq-cosit-population",
+    "title": "المؤشرات السكانية والمحافظات العراقية",
+    "publisher": "هيأة الإحصاء ونظم المعلومات الجغرافية — العراق",
+    "url": "https://www.cosit.gov.iq/ar/2013-01-31-08-43-38",
+    "category": "geography",
+    "activities": [
+      "general"
+    ],
+    "summary": "صفحة رسمية لتقديرات السكان حسب المحافظات وسنوات القياس. تحقق من سنة الجدول ونوعه قبل استخدامه؛ تقديرات 2023 ليست نتائج تعداد 2024، ولا تمثل سكان مدينة أو حجم الطلب التجاري.",
+    "published_at": null,
+    "reviewed_at": "2026-10-07",
+    "jurisdiction": "iraq",
+    "content_type": "editorial_summary"
+  },
+  {
+    "key": "worldbank-iraq-population",
+    "title": "سكان العراق — مؤشر البنك الدولي",
+    "publisher": "World Bank",
+    "url": "https://data.worldbank.org/indicator/SP.POP.TOTL?locations=IQ",
+    "category": "geography",
+    "activities": [
+      "general"
+    ],
+    "summary": "مؤشر السكان الإجمالي للعراق على مستوى الدولة مع سنوات وبيانات مصادر. يصلح للسياق الوطني؛ لا يوزع السكان على المدن أو المحافظات ولا يقيس الطلب على منتجات الشركة. قارن التعريف والسنة ببيانات المصدر العراقي قبل استخدام الأرقام.",
+    "published_at": null,
+    "reviewed_at": "2026-10-07",
+    "jurisdiction": "international",
+    "content_type": "editorial_summary"
   }
 ]

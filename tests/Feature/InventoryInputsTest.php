@@ -137,4 +137,13 @@ class InventoryInputsTest extends TestCase
         $this->preview('stock_snapshots', $csv)->assertOk()->assertJsonPath('data.status', 'invalid');
         $this->getJson('/api/advisor/data/inventory?kind=stock_snapshots')->assertOk()->assertJsonCount(0, 'data.data');
     }
+
+    public function test_population_context_is_dated_governorate_data_and_permission_gated(): void
+    {
+        $this->actor();
+        $this->getJson('/api/advisor/data/geography')->assertOk()->assertJsonPath('data.measurement_year', 2023)->assertJsonPath('data.scope', 'governorate')->assertJsonCount(18, 'data.rows')->assertJsonPath('data.rows.7.name', 'بغداد')->assertJsonPath('data.rows.7.population', 9265213);
+        $this->assertDatabaseCount('advisor_inventory_observations', 0);
+        $this->actor(['advisor.sales.read']);
+        $this->getJson('/api/advisor/data/geography')->assertForbidden();
+    }
 }

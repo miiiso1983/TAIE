@@ -70,6 +70,13 @@ class DataQualityController extends Controller
         return response()->json(['data' => $data]);
     }
 
+    public function geography(): mixed
+    {
+        $data = json_decode(file_get_contents(resource_path('data/iraq-population-context.json')), true, 512, JSON_THROW_ON_ERROR);
+
+        return response()->json(['data' => $data]);
+    }
+
     public function sources(): mixed
     {
         $this->ensureReady();

@@ -3,7 +3,7 @@ import { Badge, Button, Card, Field, Input } from '@fluentui/react-components';
 import { api, requestKey } from './api';
 import { FormDialog, Notice, QueryState, SearchableSelect, SectionCard, useQuery } from './components';
 
-const categories = { policies: 'سياسات حسب النشاط', sales: 'تطوير المبيعات', team: 'إدارة الفريق', customers: 'إدارة العملاء' };
+const categories = { geography: 'السكان والسياق الجغرافي', policies: 'سياسات حسب النشاط', sales: 'تطوير المبيعات', team: 'إدارة الفريق', customers: 'إدارة العملاء' };
 export function ExternalReferences({ can, notify, onChanged }) {
     const q = useQuery(can('ai.knowledge.read') ? '/knowledge/external-references' : null);
     const [category, setCategory] = useState(''), [search, setSearch] = useState(''), [reference, setReference] = useState(null), [busy, setBusy] = useState(false), [error, setError] = useState('');

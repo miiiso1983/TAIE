@@ -85,6 +85,7 @@ Route::middleware(['throttle:api', 'auth:sanctum', 'tenant.resolve', 'tenant.mem
     Route::prefix('advisor/data')->middleware(['permission:advisor.sales.read', 'permission:data.sensitive.read'])->group(function () {
         Route::get('/catalog', [DataQualityController::class, 'catalog']);
         Route::get('/inventory', [DataQualityController::class, 'inventory']);
+        Route::get('/geography', [DataQualityController::class, 'geography']);
         Route::get('/sources', [DataQualityController::class, 'sources']);
         Route::get('/reconciliations', [DataQualityController::class, 'index']);
         Route::get('/reconciliations/{uuid}', [DataQualityController::class, 'show']);
