@@ -7,6 +7,7 @@ use App\Http\Controllers\Api\TenantFileController;
 use App\Models\Permission;
 use App\Modules\Advisor\Http\Controllers\BonusController;
 use App\Modules\Advisor\Http\Controllers\DataQualityController;
+use App\Modules\Advisor\Http\Controllers\DecisionController;
 use App\Modules\Advisor\Http\Controllers\ImportController;
 use App\Modules\Advisor\Http\Controllers\ReportController;
 use App\Modules\Advisor\Http\Controllers\SalesMetricsController;
@@ -48,6 +49,14 @@ Route::middleware(['throttle:api', 'auth:sanctum', 'tenant.resolve', 'tenant.mem
         Route::patch('/connections/{uuid}/status', [IntegrationController::class, 'status'])->middleware(['permission:integration.manage', 'idempotency']);
         Route::get('/connections/{uuid}/batches', [IntegrationController::class, 'batches']);
         Route::post('/connections/{uuid}/preview', [IntegrationController::class, 'preview'])->middleware(['permission:integration.sync', 'permission:data.import.manage', 'idempotency']);
+    });
+
+    Route::prefix('advisor/decisions')->middleware(['permission:advisor.decision.read', 'permission:advisor.report.read', 'permission:data.sensitive.read'])->group(function () {
+        Route::get('/owners', [DecisionController::class, 'owners'])->middleware('permission:advisor.decision.manage');
+        Route::get('/', [DecisionController::class, 'index']);
+        Route::get('/{uuid}', [DecisionController::class, 'show']);
+        Route::post('/', [DecisionController::class, 'store'])->middleware(['permission:advisor.decision.manage', 'idempotency']);
+        Route::post('/{uuid}/transition', [DecisionController::class, 'transition'])->middleware(['permission:advisor.decision.manage', 'idempotency']);
     });
 
     Route::prefix('advisor')->middleware(['permission:advisor.report.read', 'permission:data.sensitive.read'])->group(function () {

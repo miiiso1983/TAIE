@@ -24,6 +24,8 @@ class DatabaseSeeder extends Seeder
             'data.sales.import' => 'advisor',
             'data.catalog.import' => 'advisor',
             'advisor.data.review' => 'advisor',
+            'advisor.decision.read' => 'advisor',
+            'advisor.decision.manage' => 'advisor',
             'advisor.sales.read' => 'advisor',
             'advisor.report.read' => 'advisor',
             'advisor.report.generate' => 'advisor',
