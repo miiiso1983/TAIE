@@ -8,11 +8,13 @@ use App\Http\Controllers\Controller;
 use App\Models\Tenant;
 use App\Modules\Advisor\Models\Area;
 use App\Modules\Advisor\Models\CustomerArea;
+use App\Modules\Advisor\Models\InventoryObservation;
 use App\Modules\Advisor\Models\InvoiceLine;
 use App\Modules\Advisor\Models\Product;
 use App\Modules\Advisor\Models\Reconciliation;
 use App\Modules\Advisor\Models\SalesInvoice;
 use App\Modules\Advisor\Services\BusinessDataImportService;
+use App\Modules\Advisor\Services\InventoryImportService;
 use App\Modules\Advisor\Services\ReconciliationService;
 use App\Modules\Advisor\Services\RecordReconciliationService;
 use Carbon\CarbonImmutable;
@@ -47,6 +49,23 @@ class DataQualityController extends Controller
                 $join->on('p.id', 'advisor_invoice_lines.product_id')->on('p.tenant_id', 'advisor_invoice_lines.tenant_id');
             })->select(['advisor_invoice_lines.uuid', 'advisor_invoice_lines.source_system', 'advisor_invoice_lines.external_id', 'i.external_id AS invoice_external_id', 'p.code AS product_code', 'advisor_invoice_lines.quantity', 'advisor_invoice_lines.base_unit', 'advisor_invoice_lines.net_amount_minor', 'i.currency'])->orderBy('advisor_invoice_lines.id')->paginate(50)->through(fn ($x) => [...$x->toArray(), 'net_amount_minor' => (string) $x->net_amount_minor]),
         };
+
+        return response()->json(['data' => $data]);
+    }
+
+    public function inventory(Request $r): mixed
+    {
+        abort_unless(InventoryImportService::available(), 503, 'Inventory inputs require the pending schema upgrade.');
+        $d = $r->validate(['kind' => ['required', 'in:stock_snapshots,product_costs,stockouts,return_lines']]);
+        $data = InventoryObservation::query()->where('kind', $d['kind'])
+            ->join('advisor_products as p', function ($j) {
+                $j->on('p.id', 'advisor_inventory_observations.product_id')->on('p.tenant_id', 'advisor_inventory_observations.tenant_id');
+            })
+            ->leftJoin('advisor_areas as a', function ($j) {
+                $j->on('a.id', 'advisor_inventory_observations.area_id')->on('a.tenant_id', 'advisor_inventory_observations.tenant_id');
+            })
+            ->select('advisor_inventory_observations.*', 'p.code as product_code', 'p.base_unit', 'a.code as area_code')->orderByDesc('advisor_inventory_observations.id')->paginate(50)
+            ->through(fn ($x) => [...$x->toArray(), 'amount_minor' => $x->amount_minor === null ? null : (string) $x->amount_minor]);
 
         return response()->json(['data' => $data]);
     }

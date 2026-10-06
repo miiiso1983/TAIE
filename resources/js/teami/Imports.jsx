@@ -5,7 +5,7 @@ import { api, requestKey } from './api';
 import { Notice, PageHeading, QueryState, RecordTable, SectionCard, useQuery } from './components';
 import { rowsOf } from './Launch';
 
-const labels={products:'المنتجات ووحداتها',areas:'مناطق الشركة في العراق',customer_locations:'ربط العملاء بالمناطق',invoice_lines:'سطور الفواتير وكميات المنتجات',employees:'الموظفون',customers:'العملاء',invoices:'فواتير المبيعات',receipts:'التحصيلات',returns:'مرتجعات المبيعات',targets:'أهداف المندوبين',compensation:'التعويضات السنوية'};
+const labels={stock_snapshots:'أرصدة المخزون المؤرخة',product_costs:'تكلفة وحدة المنتج',stockouts:'فترات انقطاع المخزون',return_lines:'كميات ومبالغ سطور المرتجعات',products:'المنتجات ووحداتها',areas:'مناطق الشركة في العراق',customer_locations:'ربط العملاء بالمناطق',invoice_lines:'سطور الفواتير وكميات المنتجات',employees:'الموظفون',customers:'العملاء',invoices:'فواتير المبيعات',receipts:'التحصيلات',returns:'مرتجعات المبيعات',targets:'أهداف المندوبين',compensation:'التعويضات السنوية'};
 const states={validated:'جاهزة للاعتماد',invalid:'تحتاج تصحيحاً',imported:'معتمدة',expired:'انتهت المعاينة'};
 export function Imports({notify}){
     const schemas=useQuery('/advisor/imports/schemas'), history=useQuery('/advisor/imports');

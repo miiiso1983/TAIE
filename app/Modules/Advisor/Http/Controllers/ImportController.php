@@ -11,6 +11,7 @@ use App\Models\Tenant;
 use App\Modules\Advisor\Models\ImportBatch;
 use App\Modules\Advisor\Services\BusinessDataImportService;
 use App\Modules\Advisor\Services\CsvImportService;
+use App\Modules\Advisor\Services\InventoryImportService;
 use App\Modules\Advisor\Services\TabularFileService;
 use App\Modules\Integrations\Models\IntegrationConnection;
 use Illuminate\Http\Request;
@@ -38,6 +39,9 @@ class ImportController extends Controller
         $result = [];
         $businessReady = BusinessDataImportService::available();
         foreach (CsvImportService::HEADERS as $kind => $columns) {
+            if (InventoryImportService::supports($kind) && ! InventoryImportService::available()) {
+                continue;
+            }
             if (BusinessDataImportService::supports($kind) && ! $businessReady) {
                 continue;
             }

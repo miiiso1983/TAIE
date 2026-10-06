@@ -82,3 +82,9 @@ function downloadEvidenceTemplate() {
     const url = URL.createObjectURL(new Blob([text], { type: 'text/csv;charset=utf-8' }));
     const link = document.createElement('a'); link.href = url; link.download = 'reconciliation-evidence.csv'; link.click(); URL.revokeObjectURL(url);
 }
+
+export function InventoryCatalog() {
+ const [kind,setKind]=useState('stock_snapshots'),[page,setPage]=useState(1),q=useQuery('/advisor/data/inventory?kind='+kind+'&page='+page);
+ const names={stock_snapshots:'أرصدة المخزون',product_costs:'تكلفة الوحدة',stockouts:'فترات الانقطاع',return_lines:'كميات المرتجعات'};
+ return <SectionCard title="مدخلات المخزون والتكلفة والمرتجعات"><Notice>سجلات تحليلية مستوردة بوحدة المنتج الأساسية. لا تحرّك المخزون ولا تنشئ قيداً مالياً، ولا تثبت اكتمال حركة المخزون.</Notice><SearchableSelect value={kind} onChange={e=>{setKind(e.target.value);setPage(1);}} aria-label="نوع مدخلات المخزون">{Object.entries(names).map(([v,label])=><option key={v} value={v}>{label}</option>)}</SearchableSelect><QueryState query={q}><RecordTable caption={names[kind]} rows={rowsOf(q.data)} columns={[{key:'external_id',label:'رقم المصدر'},{key:'source_system',label:'النظام'},{key:'product_code',label:'المنتج'},{key:'area_code',label:'المنطقة'},{key:'observed_on',label:'التاريخ',render:x=>x.observed_on?.slice(0,10)},{key:'end_date',label:'نهاية الانقطاع',render:x=>x.end_date?.slice(0,10)??'—'},{key:'quantity',label:'الكمية',render:x=>x.quantity===null?'—':x.quantity+' '+x.base_unit},{key:'amount_minor',label:'المبلغ',render:x=>x.amount_minor===null?'—':exactMoney(x.amount_minor,x.currency)}]}/><Pager meta={q.data?.data} setPage={setPage}/></QueryState></SectionCard>;
+}

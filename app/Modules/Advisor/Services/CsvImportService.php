@@ -17,9 +17,11 @@ use Illuminate\Validation\ValidationException;
 class CsvImportService
 {
     public const REQUIRED = [
+        ...InventoryImportService::HEADERS,
         'products' => ['product_code', 'name', 'base_unit'], 'areas' => ['area_code', 'province_name', 'city_name'], 'customer_locations' => ['customer_number', 'area_code'], 'invoice_lines' => ['external_id', 'invoice_external_id', 'product_code', 'quantity', 'net_amount'], 'employees' => ['employee_number', 'first_name', 'last_name'], 'customers' => ['customer_number', 'name'], 'invoices' => ['external_id', 'invoice_date', 'due_date', 'customer_number', 'employee_number', 'currency', 'net_amount'], 'receipts' => ['external_id', 'invoice_external_id', 'receipt_date', 'currency', 'amount'], 'returns' => ['external_id', 'invoice_external_id', 'return_date', 'currency', 'amount'], 'targets' => ['external_id', 'employee_number', 'period_from', 'period_to', 'currency', 'amount'], 'compensation' => ['employee_number', 'annual_base', 'currency', 'effective_from']];
 
     public const HEADERS = [
+        ...InventoryImportService::HEADERS,
         'products' => ['product_code', 'name', 'base_unit'], 'areas' => ['area_code', 'province_name', 'city_name'], 'customer_locations' => ['customer_number', 'area_code'], 'invoice_lines' => ['external_id', 'invoice_external_id', 'product_code', 'quantity', 'net_amount'],
         'employees' => ['employee_number', 'first_name', 'last_name', 'work_email', 'hired_at'],
         'customers' => ['customer_number', 'name', 'email'],
@@ -85,6 +87,9 @@ class CsvImportService
 
     public function validateRows(array $rows, string $kind, string $source): array
     {
+        if (InventoryImportService::supports($kind)) {
+            return app(InventoryImportService::class)->validateRows($rows, $kind, $source);
+        }
         if (BusinessDataImportService::supports($kind)) {
             return app(BusinessDataImportService::class)->validateRows($rows, $kind, $source);
         }
@@ -214,6 +219,11 @@ class CsvImportService
 
     public function write(array $rows, string $kind, string $source, int $batch): void
     {
+        if (InventoryImportService::supports($kind)) {
+            app(InventoryImportService::class)->write($rows, $kind, $source, $batch);
+
+            return;
+        }
         if (BusinessDataImportService::supports($kind)) {
             app(BusinessDataImportService::class)->write($rows, $kind, $source, $batch);
 
