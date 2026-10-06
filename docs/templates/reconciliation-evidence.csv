@@ -1,0 +1,4 @@
+kind,external_id,invoice_external_id,record_date,due_date,customer_number,employee_number,currency,amount
+invoices,0001,,2026-10-01,2026-11-01,C1,E1,USD,10.25
+receipts,R1,0001,2026-10-06,,,,USD,5.00
+returns,T1,0001,2026-10-03,,,,USD,1.00

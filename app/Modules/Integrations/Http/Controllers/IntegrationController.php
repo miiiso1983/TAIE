@@ -74,7 +74,7 @@ class IntegrationController extends Controller
         abort_if(strlen($r->getContent()) > 1048576, 413, 'Maximum request size is 1 MiB.');
         $d = $r->validate(['schema_version' => ['required', 'in:1'], 'kind' => ['required', Rule::in(array_keys(CsvImportService::HEADERS))], 'records' => ['required', 'array', 'list', 'min:1', 'max:1000'], 'records.*' => ['required', 'array']]);
         $permission = match ($d['kind']) {
-            'employees' => 'hr.employee.create', 'customers' => 'sales.customer.create', 'compensation' => 'hr.compensation.write', 'targets' => 'sales.target.write', default => 'data.sales.import'
+            'products', 'areas' => 'data.catalog.import', 'customer_locations' => 'sales.customer.update', 'employees' => 'hr.employee.create', 'customers' => 'sales.customer.create', 'compensation' => 'hr.compensation.write', 'targets' => 'sales.target.write', default => 'data.sales.import'
         };
         abort_unless(app(PolicyEvaluator::class)->allows($r->user(), $permission), 403);
         $rows = [];

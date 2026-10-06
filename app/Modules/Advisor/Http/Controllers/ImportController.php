@@ -9,6 +9,7 @@ use App\Core\Tenancy\TenantContext;
 use App\Http\Controllers\Controller;
 use App\Models\Tenant;
 use App\Modules\Advisor\Models\ImportBatch;
+use App\Modules\Advisor\Services\BusinessDataImportService;
 use App\Modules\Advisor\Services\CsvImportService;
 use App\Modules\Advisor\Services\TabularFileService;
 use App\Modules\Integrations\Models\IntegrationConnection;
@@ -22,7 +23,7 @@ class ImportController extends Controller
     private function authorizeKind(Request $r, string $kind): void
     {
         $permission = match ($kind) {
-            'employees' => 'hr.employee.create','customers' => 'sales.customer.create', 'compensation' => 'hr.compensation.write', 'targets' => 'sales.target.write',default => 'data.sales.import'
+            'products', 'areas' => 'data.catalog.import', 'customer_locations' => 'sales.customer.update', 'employees' => 'hr.employee.create','customers' => 'sales.customer.create', 'compensation' => 'hr.compensation.write', 'targets' => 'sales.target.write',default => 'data.sales.import'
         };
         abort_unless(app(PolicyEvaluator::class)->allows($r->user(), $permission), 403, 'You do not have permission to import this dataset.');
     }
@@ -35,9 +36,13 @@ class ImportController extends Controller
     public function schemas(Request $r): mixed
     {
         $result = [];
+        $businessReady = BusinessDataImportService::available();
         foreach (CsvImportService::HEADERS as $kind => $columns) {
+            if (BusinessDataImportService::supports($kind) && ! $businessReady) {
+                continue;
+            }
             $permission = match ($kind) {
-                'employees' => 'hr.employee.create','customers' => 'sales.customer.create', 'compensation' => 'hr.compensation.write', 'targets' => 'sales.target.write',default => 'data.sales.import'
+                'products', 'areas' => 'data.catalog.import', 'customer_locations' => 'sales.customer.update', 'employees' => 'hr.employee.create','customers' => 'sales.customer.create', 'compensation' => 'hr.compensation.write', 'targets' => 'sales.target.write',default => 'data.sales.import'
             };
             if (app(PolicyEvaluator::class)->allows($r->user(), $permission)) {
                 $result[] = ['kind' => $kind, 'columns' => $columns, 'required' => CsvImportService::REQUIRED[$kind]];

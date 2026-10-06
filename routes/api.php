@@ -6,6 +6,7 @@ use App\Http\Controllers\Api\MembershipController;
 use App\Http\Controllers\Api\TenantFileController;
 use App\Models\Permission;
 use App\Modules\Advisor\Http\Controllers\BonusController;
+use App\Modules\Advisor\Http\Controllers\DataQualityController;
 use App\Modules\Advisor\Http\Controllers\ImportController;
 use App\Modules\Advisor\Http\Controllers\ReportController;
 use App\Modules\Advisor\Http\Controllers\SalesMetricsController;
@@ -71,6 +72,15 @@ Route::middleware(['throttle:api', 'auth:sanctum', 'tenant.resolve', 'tenant.mem
     });
 
     Route::post('/advisor/sales/coverage', [SalesMetricsController::class, 'confirmCoverage'])->middleware(['permission:advisor.sales.read', 'permission:data.sensitive.read', 'permission:data.import.manage', 'idempotency']);
+    Route::prefix('advisor/data')->middleware(['permission:advisor.sales.read', 'permission:data.sensitive.read'])->group(function () {
+        Route::get('/catalog', [DataQualityController::class, 'catalog']);
+        Route::get('/sources', [DataQualityController::class, 'sources']);
+        Route::get('/reconciliations', [DataQualityController::class, 'index']);
+        Route::get('/reconciliations/{uuid}', [DataQualityController::class, 'show']);
+        Route::get('/reconciliations/{uuid}/differences', [DataQualityController::class, 'differences']);
+        Route::post('/reconciliations/detailed', [DataQualityController::class, 'detailed'])->middleware(['permission:advisor.data.review', 'throttle:imports', 'idempotency']);
+        Route::post('/reconciliations', [DataQualityController::class, 'store'])->middleware(['permission:advisor.data.review', 'idempotency']);
+    });
     Route::get('/advisor/sales/metrics', [SalesMetricsController::class, 'metrics'])->middleware(['permission:advisor.sales.read', 'permission:data.sensitive.read']);
     Route::get('/advisor/sales/invoices', [SalesMetricsController::class, 'invoices'])->middleware(['permission:advisor.sales.read', 'permission:data.sensitive.read']);
     Route::prefix('advisor/imports')->middleware(['permission:data.import.manage', 'permission:data.sensitive.read'])->group(function () {

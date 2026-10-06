@@ -2,6 +2,7 @@
 
 namespace App\Modules\Advisor\Services;
 
+use App\Modules\Advisor\Models\CustomerArea;
 use App\Modules\Advisor\Models\SalesInvoice;
 use App\Modules\Advisor\Models\SalesReceipt;
 use App\Modules\Advisor\Models\SalesReturn;
@@ -15,9 +16,11 @@ use Illuminate\Validation\ValidationException;
 
 class CsvImportService
 {
-    public const REQUIRED = ['employees' => ['employee_number', 'first_name', 'last_name'], 'customers' => ['customer_number', 'name'], 'invoices' => ['external_id', 'invoice_date', 'due_date', 'customer_number', 'employee_number', 'currency', 'net_amount'], 'receipts' => ['external_id', 'invoice_external_id', 'receipt_date', 'currency', 'amount'], 'returns' => ['external_id', 'invoice_external_id', 'return_date', 'currency', 'amount'], 'targets' => ['external_id', 'employee_number', 'period_from', 'period_to', 'currency', 'amount'], 'compensation' => ['employee_number', 'annual_base', 'currency', 'effective_from']];
+    public const REQUIRED = [
+        'products' => ['product_code', 'name', 'base_unit'], 'areas' => ['area_code', 'province_name', 'city_name'], 'customer_locations' => ['customer_number', 'area_code'], 'invoice_lines' => ['external_id', 'invoice_external_id', 'product_code', 'quantity', 'net_amount'], 'employees' => ['employee_number', 'first_name', 'last_name'], 'customers' => ['customer_number', 'name'], 'invoices' => ['external_id', 'invoice_date', 'due_date', 'customer_number', 'employee_number', 'currency', 'net_amount'], 'receipts' => ['external_id', 'invoice_external_id', 'receipt_date', 'currency', 'amount'], 'returns' => ['external_id', 'invoice_external_id', 'return_date', 'currency', 'amount'], 'targets' => ['external_id', 'employee_number', 'period_from', 'period_to', 'currency', 'amount'], 'compensation' => ['employee_number', 'annual_base', 'currency', 'effective_from']];
 
     public const HEADERS = [
+        'products' => ['product_code', 'name', 'base_unit'], 'areas' => ['area_code', 'province_name', 'city_name'], 'customer_locations' => ['customer_number', 'area_code'], 'invoice_lines' => ['external_id', 'invoice_external_id', 'product_code', 'quantity', 'net_amount'],
         'employees' => ['employee_number', 'first_name', 'last_name', 'work_email', 'hired_at'],
         'customers' => ['customer_number', 'name', 'email'],
         'invoices' => ['external_id', 'invoice_date', 'due_date', 'customer_number', 'employee_number', 'currency', 'net_amount'],
@@ -82,6 +85,9 @@ class CsvImportService
 
     public function validateRows(array $rows, string $kind, string $source): array
     {
+        if (BusinessDataImportService::supports($kind)) {
+            return app(BusinessDataImportService::class)->validateRows($rows, $kind, $source);
+        }
         $errors = [];
         $seen = [];
         $emails = [];
@@ -208,6 +214,12 @@ class CsvImportService
 
     public function write(array $rows, string $kind, string $source, int $batch): void
     {
+        if (BusinessDataImportService::supports($kind)) {
+            app(BusinessDataImportService::class)->write($rows, $kind, $source, $batch);
+
+            return;
+        }
+        $withArea = $kind === 'invoices' && BusinessDataImportService::available();
         foreach ($rows as $row) {
             $d = $row['values'];
             $base = ['uuid' => (string) Str::uuid()];
@@ -216,7 +228,7 @@ class CsvImportService
             } elseif ($kind === 'customers') {
                 Customer::query()->create([...$base, 'customer_number' => $d['customer_number'], 'name' => $d['name'], 'email' => $d['email'] ?: null, 'type' => 'organization', 'status' => 'active']);
             } elseif ($kind === 'invoices') {
-                SalesInvoice::query()->create([...$base, 'batch_id' => $batch, 'source_system' => $source, 'external_id' => $d['external_id'], 'invoice_date' => $d['invoice_date'], 'due_date' => $d['due_date'], 'customer_id' => Customer::query()->where('customer_number', $d['customer_number'])->firstOrFail()->id, 'employee_id' => Employee::query()->where('employee_number', $d['employee_number'])->firstOrFail()->id, 'currency' => $d['currency'], 'net_amount_minor' => $this->minor($d['net_amount'], $d['currency'])]);
+                SalesInvoice::query()->create([...$base, 'batch_id' => $batch, 'source_system' => $source, 'external_id' => $d['external_id'], 'invoice_date' => $d['invoice_date'], 'due_date' => $d['due_date'], 'customer_id' => Customer::query()->where('customer_number', $d['customer_number'])->firstOrFail()->id, ...($withArea ? ['area_id' => CustomerArea::query()->where('customer_id', Customer::query()->where('customer_number', $d['customer_number'])->value('id'))->value('area_id')] : []), 'employee_id' => Employee::query()->where('employee_number', $d['employee_number'])->firstOrFail()->id, 'currency' => $d['currency'], 'net_amount_minor' => $this->minor($d['net_amount'], $d['currency'])]);
             } elseif ($kind === 'targets') {
                 SalesTarget::query()->create([...$base, 'batch_id' => $batch, 'source_system' => $source, 'external_id' => $d['external_id'], 'employee_id' => Employee::query()->where('employee_number', $d['employee_number'])->firstOrFail()->id, 'period_from' => $d['period_from'], 'period_to' => $d['period_to'], 'currency' => $d['currency'], 'amount_minor' => $this->minor($d['amount'], $d['currency'])]);
             } elseif ($kind === 'compensation') {

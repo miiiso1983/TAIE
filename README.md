@@ -10,6 +10,10 @@ The new product roadmap is [ADVISOR-ROADMAP.md](docs/ADVISOR-ROADMAP.md). Its fi
 
 All current business selection fields use a shared searchable Fluent Combobox. An opt-in, activity-aware catalog of reviewed external summaries supports policies, sales, team and customer guidance. Sources remain distinct from company policy. Read [EXTERNAL-REFERENCES.md](docs/EXTERNAL-REFERENCES.md). Live crawling, automatic updates and Iraqi legal compliance are not implemented.
 
+## Data quality foundation
+
+Product/base-unit, company-defined Iraq area, customer-area and invoice-line imports are now available. Review source control totals against an invoice cohort, retain encrypted evidence and detect stale comparisons; inspect detail readiness without asserting global coverage. See [DATA-QUALITY-FOUNDATION.md](docs/DATA-QUALITY-FOUNDATION.md). Detailed CSV/XLSX source-record matching now detects missing/extra records and changed fields, retains encrypted evidence and paginates saved differences without changing financial records. Cross-program identity mapping, confirmed coverage, official population data, inventory and product forecasting remain pending.
+
 ## Release candidate
 
 Operational workflows, manual-transfer subscriptions, membership administration, account recovery and deployment templates are included. Read [the launch guide](docs/LAUNCH.md) before production. Live hosting, MySQL concurrency, SMTP delivery, AI provider acceptance and backup restoration still require staging verification.

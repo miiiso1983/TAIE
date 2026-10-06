@@ -141,10 +141,13 @@ export function FormDialog({ title, fields, initial = {}, save, onClose, onSaved
         event.preventDefault();
         if (inFlight.current) return;
         const data = Object.fromEntries(fields.map(f => [f.name, values[f.name] === '' ? (f.nullable ? null : undefined) : f.boolean ? values[f.name] === 'true' : values[f.name]]).filter(([, value]) => value !== undefined));
-        const signature = JSON.stringify(data);
-        if (lastAttempt.current.signature !== signature) lastAttempt.current = { signature, key: requestKey() };
         inFlight.current = true; setBusy(true); setError('');
-        try { await save(data, lastAttempt.current.key); onSaved(success ?? 'تم الحفظ بنجاح'); }
+        try {
+            const signatureData = await Promise.all(Object.entries(data).map(async ([name, value]) => [name, value instanceof File ? { name: value.name, hash: Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256', await value.arrayBuffer()))).map(x => x.toString(16).padStart(2, '0')).join('') } : value]));
+            const signature = JSON.stringify(signatureData);
+            if (lastAttempt.current.signature !== signature) lastAttempt.current = { signature, key: requestKey() };
+            await save(data, lastAttempt.current.key); onSaved(success ?? 'تم الحفظ بنجاح');
+        }
         catch (error) { setError(error.message); }
         finally { inFlight.current = false; setBusy(false); }
     }
@@ -156,7 +159,7 @@ export function FormDialog({ title, fields, initial = {}, save, onClose, onSaved
                     const choices = typeof f.options === 'function' ? f.options(values) : f.options;
                     if (f.type === 'permissions') return <fieldset key={f.name} className="permission-fieldset span-two"><legend>{f.label}</legend><div className="permission-options">{(choices ?? []).map(o => <Checkbox key={o.value} label={o.label} checked={(values[f.name] ?? []).includes(o.value)} disabled={busy} onChange={(_, d) => change(f, d.checked ? [...(values[f.name] ?? []), o.value] : (values[f.name] ?? []).filter(x => x !== o.value))} />)}</div></fieldset>;
                     return <Field key={f.name} label={f.label} required={f.required} hint={f.hint} className={f.wide ? 'span-two' : ''}>
-                        {f.type === 'permissions' ? <div className="permission-options">{(choices ?? []).map(o => <Checkbox key={o.value} label={o.label} checked={(values[f.name] ?? []).includes(o.value)} disabled={busy} onChange={(_, d) => change(f, d.checked ? [...(values[f.name] ?? []), o.value] : (values[f.name] ?? []).filter(x => x !== o.value))} />)}</div> : f.remote ? <RemoteSearchableSelect {...common} source={f.remote} onChange={e => change(f, e.target.value)} /> : choices ? <Select {...common} onChange={e => change(f, e.target.value)}>{!f.required || f.placeholder ? <option value="">{f.placeholder ?? 'بدون تحديد'}</option> : null}{choices.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}</Select> : f.type === 'textarea' ? <Textarea {...common} maxLength={f.maxLength} resize="vertical" onChange={(_, d) => change(f, d.value)} /> : <Input {...common} type={f.type ?? 'text'} min={f.min} max={f.max} step={f.step} maxLength={f.maxLength} onChange={(_, d) => change(f, d.value)} />}
+                        {f.type === 'file' ? <input aria-label={f.label} name={f.name} type="file" accept={f.accept} required={!!f.required} disabled={busy} onChange={e => change(f, e.target.files[0] ?? '')} /> : f.type === 'permissions' ? <div className="permission-options">{(choices ?? []).map(o => <Checkbox key={o.value} label={o.label} checked={(values[f.name] ?? []).includes(o.value)} disabled={busy} onChange={(_, d) => change(f, d.checked ? [...(values[f.name] ?? []), o.value] : (values[f.name] ?? []).filter(x => x !== o.value))} />)}</div> : f.remote ? <RemoteSearchableSelect {...common} source={f.remote} onChange={e => change(f, e.target.value)} /> : choices ? <Select {...common} onChange={e => change(f, e.target.value)}>{!f.required || f.placeholder ? <option value="">{f.placeholder ?? 'بدون تحديد'}</option> : null}{choices.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}</Select> : f.type === 'textarea' ? <Textarea {...common} maxLength={f.maxLength} resize="vertical" onChange={(_, d) => change(f, d.value)} /> : <Input {...common} type={f.type ?? 'text'} min={f.min} max={f.max} step={f.step} maxLength={f.maxLength} onChange={(_, d) => change(f, d.value)} />}
                     </Field>;
                 })}</div>{error && <div className="form-message"><Notice intent="error">{error}</Notice></div>}</DialogContent>
                 <DialogActions><Button disabled={busy} onClick={onClose}>إلغاء</Button><Button appearance="primary" type="submit" disabled={busy} icon={busy ? <Spinner size="tiny" /> : undefined}>{busy ? 'جارٍ الحفظ…' : 'حفظ'}</Button></DialogActions>

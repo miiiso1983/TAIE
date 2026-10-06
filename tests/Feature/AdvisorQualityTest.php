@@ -13,6 +13,8 @@ use App\Modules\Advisor\Models\SalesInvoice;
 use App\Modules\Advisor\Models\SalesReceipt;
 use App\Modules\Advisor\Models\SalesReturn;
 use App\Modules\Advisor\Models\SalesTarget;
+use App\Modules\Advisor\Services\BusinessDataImportService;
+use App\Modules\Advisor\Services\CsvImportService;
 use App\Modules\HR\Models\CompensationRecord;
 use App\Modules\HR\Models\Employee;
 use App\Modules\Sales\Models\Customer;
@@ -169,5 +171,18 @@ class AdvisorQualityTest extends TestCase
         $this->getJson('/api/hr/employees?search='.urlencode('أحمد علي').'&per_page=50')->assertOk()->assertJsonPath('meta.total', 105);
         $this->actor(null, ['hr.employee.read']);
         $this->getJson('/api/hr/employees?search=N105')->assertOk()->assertJsonCount(0, 'data');
+    }
+
+    public function test_existing_invoice_imports_work_before_business_catalog_upgrade(): void
+    {
+        $migration = require database_path('migrations/2026_10_07_000001_create_advisor_quality_foundation.php');
+        $migration->down();
+        [$tenant, $user, , $batch] = $this->fixture();
+        $this->assertFalse(BusinessDataImportService::available());
+        app(CsvImportService::class)->write([['values' => ['external_id' => 'I2', 'invoice_date' => '2026-09-01', 'due_date' => '2026-09-30', 'customer_number' => 'C1', 'employee_number' => 'E1', 'currency' => 'USD', 'net_amount' => '10.00']]], 'invoices', 'primary', $batch->id);
+        $this->assertSame(2, SalesInvoice::query()->count());
+        $this->getJson($this->url())->assertOk();
+        $this->getJson('/api/advisor/data/reconciliations')->assertStatus(503);
+        $this->getJson('/api/advisor/imports/schemas')->assertOk();
     }
 }

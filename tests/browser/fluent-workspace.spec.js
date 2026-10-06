@@ -18,7 +18,7 @@ async function fixture(page, { signedIn = true, permissions = allPermissions, mf
     const externalReference={key:'cipd-performance',title:'إدارة الأداء وتطوير الفريق',publisher:'CIPD',url:'https://www.cipd.org/en/knowledge/factsheets/performance-factsheet/',category:'team',summary:'مرجع لتحسين مراجعات الأداء وتطوير الفريق.',reviewed_at:'2026-10-07',recommended:true,status:'not_added'};
     let businessActivity='general', coverageConfirmed=false;
     const integrationConnections=[], integrationBatches=[];
-    const reportRows=[], reportSchedules=[];
+    const reportRows=[], reportSchedules=[], reconciliationRows=[];
     const reportSnapshot={kind:'sales',notes:['التغطية غير مؤكدة؛ طابق المصدر قبل القرار.'],totals:{USD:{net_sales_minor:'10000',collected_minor:'7000',balance_minor:'3000',overdue_balance_minor:'3000',credit_minor:'0'}},previous:{from:'2026-08-02',to:'2026-08-31',totals:{USD:{net_sales_minor:'8000',collected_minor:'6000'}}},evidence:[{uuid:'I1',external_id:'I1',source_system:'primary',employee_name:'موظف تجريبي',currency:'USD',net_sales_minor:'10000',collected_minor:'7000'}]};
     const bonusPolicy = {uuid:'policy-1',name:'سياسة الشركة التجريبية',version:1,currency:'USD',mode:'enforced',valid_from:'2026-01-01',valid_to:'2026-12-31',rules:{minimum_sales_percent:'100',minimum_collection_percent:'80',maximum_monthly_base_percent:'10'}};
     const bonusRequests=[];
@@ -31,9 +31,20 @@ async function fixture(page, { signedIn = true, permissions = allPermissions, mf
             writes.push({path,method:'POST',body:request.postData(),contentType:request.headers()['content-type']});
             return fulfill({data:{uuid:'import-batch',kind:'customers',source_system:'primary',status:'validated',row_count:1,error_count:0,errors:[]}});
         }
+        if (path === '/advisor/data/reconciliations/detailed' && request.method() === 'POST') {
+            writes.push({path,body:request.postData(),contentType:request.headers()['content-type'],key:request.headers()['idempotency-key']});
+            const actual={invoices:{count:1,amount_minor:'10000'},receipts:{count:0,amount_minor:'0'},returns:{count:0,amount_minor:'0'}};
+            const x={uuid:'reconciliation-1',method:'record_matching',source_system:'primary',from:'2026-09-01',to:'2026-09-30',as_of:'2026-10-06',currency:'USD',status:'mismatched',current_status:'mismatched',evidence_reference:'Independent-Report',review_note:'راجعت تقرير المصدر المستقل',snapshot:{expected:actual,actual,record_counts:{matched:0,missing_in_teami:0,unexpected_in_teami:0,changed_fields:1},differences:{invoices:{count:0,amount_minor:'0'},receipts:{count:0,amount_minor:'0'},returns:{count:0,amount_minor:'0'}}},current:{readiness:{invoices_without_area:0,invoices_without_lines:0,invoices_with_line_difference:0}}};
+            reconciliationRows.push(x);return fulfill({data:x},201);
+        }
         if (request.method() !== 'GET') {
             const data = request.postDataJSON(); writes.push({ path, data, method: request.method(), key: request.headers()['idempotency-key'] });
             if (path === '/advisor/sales/coverage') {coverageConfirmed=true;return fulfill({data:{uuid:'coverage-1'}},201);}
+            if (path === '/advisor/data/reconciliations') {
+                const actual={invoices:{count:1,amount_minor:'10000'},receipts:{count:1,amount_minor:'5000'},returns:{count:0,amount_minor:'0'}};
+                const readiness={invoices_without_area:0,invoices_without_lines:0,invoices_with_line_difference:0};
+                const x={uuid:'reconciliation-1',source_system:data.source_system,from:data.from,to:data.to,as_of:data.as_of,currency:data.currency,status:'matched',current_status:'matched',evidence_reference:data.evidence_reference,review_note:data.review_note,snapshot:{expected:actual,actual,differences:{invoices:{count:0,amount_minor:'0'},receipts:{count:0,amount_minor:'0'},returns:{count:0,amount_minor:'0'}}},current:{readiness}};reconciliationRows.push(x);return fulfill({data:x},201);
+            }
             if (path === '/advisor/reports') {reportRows.push({uuid:'report-1',kind:data.kind,period_from:data.from,period_to:data.to,as_of:data.as_of,version:1,created_at:'2026-10-05T12:00:00Z',snapshot:reportSnapshot});return fulfill({data:reportRows[0]});}
             if (path === '/advisor/report-schedules') {reportSchedules.push({uuid:'schedule-1',...data,enabled:true,next_run_at:'2026-10-12T06:00:00Z',last_error_code:null});return fulfill({data:reportSchedules[0]},201);}
             if (path === '/advisor/report-schedules/schedule-1/disable') {reportSchedules[0].enabled=false;return fulfill({data:reportSchedules[0]});}
@@ -80,6 +91,15 @@ async function fixture(page, { signedIn = true, permissions = allPermissions, mf
         if (path === '/advisor/bonus-policies') return fulfill({data:{data:[bonusPolicy],current_page:1,last_page:1}});
         if (path === '/advisor/bonus-requests') return fulfill({data:{data:bonusRequests,current_page:1,last_page:1}});
         if (path === '/advisor/bonus-requests/bonus-1') return fulfill({data:bonusRequests[0]});
+        if (path === '/advisor/data/sources') return fulfill({data:['primary']});
+        if (path === '/advisor/data/reconciliations') return fulfill({data:{data:reconciliationRows,current_page:1,last_page:1}});
+        if (path === '/advisor/data/reconciliations/reconciliation-1/differences') return fulfill({data:{data:[{kind:'invoices',external_id:'0001',type:'changed_fields',fields:{customer_number:{source:'C1',imported:'C2'}},source:{currency:'USD'},imported:{currency:'USD'}}],current_page:1,last_page:1,total:1}});
+        if (path === '/advisor/data/reconciliations/reconciliation-1') return fulfill({data:reconciliationRows[0]});
+        if (path === '/advisor/data/catalog') {
+            const kind=u.searchParams.get('kind');
+            const rows=kind==='products'?[{uuid:'product',code:'P1',name:'منتج الاختبار',base_unit:'علبة'}]:kind==='areas'?[{uuid:'area',code:'BGH1',province_name:'بغداد',city_name:'الكرادة'}]:kind==='invoice_lines'?[{uuid:'line',source_system:'primary',invoice_external_id:'I1',external_id:'L1',product_code:'P1',quantity:'2.500',base_unit:'علبة',net_amount_minor:'10000',currency:'USD'}]:[];
+            return fulfill({data:{data:rows,current_page:1,last_page:1}});
+        }
         if (path === '/advisor/sales/metrics') return fulfill({data:{filters:{from:u.searchParams.get('from'),to:u.searchParams.get('to'),as_of:u.searchParams.get('as_of')},rows:[{employee_uuid:ids.employee,employee_name:'مندوب الاختبار',employee_number:'E1',currency:'USD',invoice_count:1,sales_minor:'10000',collected_minor:'5000',balance_minor:'5000',overdue_balance_minor:'5000',collection_percent:'50.00'}],quality:{invoice_count:1,recorded_receipt_count:2,latest_financial_import_at:null,coverage_confirmed:coverageConfirmed,fingerprint:'a'.repeat(64),coverage:{status:coverageConfirmed?'confirmed':'unconfirmed'},reconciliation:{USD:{invoice_count:1,receipt_count:2,return_count:0,sales_minor:'10000',returns_minor:'0',collected_minor:'5000',balance_minor:'5000',credit_minor:'0',difference_minor:'0',balanced:true}},missing:{last_invoice_date:'2026-09-01',last_receipt_date:'2026-09-15',invoices_without_receipts:0},sources:[],warnings:['اكتمال الملفات غير مؤكد.']}}});
         if (path === '/advisor/sales/invoices') return fulfill({data:[{uuid:'invoice',external_id:'I1',source_system:'primary',invoice_date:'2026-09-01',due_date:'2026-10-01',currency:'USD',sales_minor:'10000',collected_minor:'5000',balance_minor:'5000',receipt_count:2}],meta:{total:1,current_page:1,last_page:1}});
         if (path === '/advisor/imports/schemas') return fulfill({data:[{kind:'customers',columns:['customer_number','name','email'],required:['customer_number','name']}]});
@@ -474,4 +494,47 @@ test('bonus employee picker searches the server beyond the initial directory', a
     await expect(page.getByRole('combobox',{name:'الموظف',exact:true})).toHaveValue('موظف بعيد · E101');
     expect(requests).toContain('E101');
     expect(errors).toEqual([]);
+});
+
+test('Data reconciliation requires independent source acknowledgement and displays saved controls',async({page})=>{
+    const {writes,errors}=await fixture(page,{permissions:[...allPermissions,'advisor.sales.read','advisor.data.review']});
+    await page.locator('.account-button').click();await page.getByRole('menuitem',{name:'تحليل الأداء',exact:true}).click();
+    await page.getByRole('button',{name:'مصالحة جديدة',exact:true}).click();const dialog=page.getByRole('dialog');
+    await choose(page,dialog.getByRole('combobox',{name:'مصدر البيانات للمصالحة',exact:true}),'primary');
+    await choose(page,dialog.getByRole('combobox',{name:'عملة المصالحة',exact:true}),'USD');
+    await dialog.getByLabel('فواتير المصالحة من').fill('2026-09-01');await dialog.getByLabel('فواتير المصالحة إلى').fill('2026-09-30');await dialog.getByLabel('الحركات حتى').fill('2026-10-06');
+    for(const [label,value] of [['عدد الفواتير في المصدر','1'],['إجمالي الفواتير في المصدر','100.00'],['عدد التحصيلات في المصدر','1'],['إجمالي التحصيلات في المصدر','50.00'],['عدد المرتجعات في المصدر','0'],['إجمالي المرتجعات في المصدر','0']])await dialog.getByRole(label.startsWith('عدد')?'spinbutton':'textbox',{name:label,exact:true}).fill(value);
+    await dialog.getByLabel('مرجع تقرير المصدر').fill('ERP-Source-Report');await dialog.getByLabel('ملاحظة مراجعة المصدر').fill('راجعت التقرير المستقل بنفس النطاق');
+    await dialog.getByRole('button',{name:'حفظ',exact:true}).click();expect(writes.some(x=>x.path==='/advisor/data/reconciliations')).toBeFalsy();
+    await choose(page,dialog.getByRole('combobox',{name:'تأكيد نطاق المقارنة',exact:true}),'true');await dialog.getByRole('button',{name:'حفظ',exact:true}).click();await expect(dialog).toHaveCount(0);
+    await page.getByRole('button',{name:'مراجعة الفروقات',exact:true}).click();await expect(page.getByRole('table',{name:'فروقات المصدر والسجلات المستوردة'})).toBeVisible();await expect(page.getByText('ERP-Source-Report',{exact:false})).toBeVisible();
+    const write=writes.find(x=>x.path==='/advisor/data/reconciliations');expect(write.key).toBeTruthy();expect(write.data).toMatchObject({source_system:'primary',invoice_amount:'100.00',return_count:'0',acknowledge:true});expect(errors).toEqual([]);
+    if(process.env.TEAMI_CAPTURE_PREVIEW)await page.screenshot({path:'/tmp/teami-quality.png',fullPage:true,animations:'disabled'});
+});
+
+test('Read-only analyst can inspect products and regions without creating a reconciliation',async({page})=>{
+    const {errors}=await fixture(page,{permissions:[...allPermissions,'advisor.sales.read']});
+    await page.setViewportSize({width:390,height:844});await page.locator('.account-button').click();await page.getByRole('menuitem',{name:'تحليل الأداء',exact:true}).click();
+    await expect(page.getByRole('button',{name:'مصالحة جديدة',exact:true})).toHaveCount(0);await expect(page.getByText('منتج الاختبار',{exact:true})).toBeVisible();
+    await choose(page,page.getByRole('combobox',{name:'عرض بيانات المنتجات والمناطق',exact:true}),'areas');await expect(page.getByText('الكرادة',{exact:true})).toBeVisible();
+    await choose(page,page.getByRole('combobox',{name:'عرض بيانات المنتجات والمناطق',exact:true}),'invoice_lines');await expect(page.getByText('2.500',{exact:true})).toBeVisible();
+    expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBeTruthy();expect(errors).toEqual([]);
+});
+
+test('Detailed reconciliation uploads source records and shows field evidence',async({page})=>{
+    const {writes,errors}=await fixture(page,{permissions:[...allPermissions,'advisor.sales.read','advisor.data.review']});
+    await page.locator('.account-button').click();await page.getByRole('menuitem',{name:'تحليل الأداء',exact:true}).click();
+    await page.getByRole('button',{name:'مطابقة السجلات',exact:true}).click();const dialog=page.getByRole('dialog');
+    await choose(page,dialog.getByRole('combobox',{name:'مصدر البيانات للمصالحة',exact:true}),'primary');
+    await choose(page,dialog.getByRole('combobox',{name:'عملة المصالحة',exact:true}),'USD');
+    await dialog.getByLabel('فواتير المصالحة من').fill('2026-09-01');await dialog.getByLabel('فواتير المصالحة إلى').fill('2026-09-30');await dialog.getByLabel('الحركات حتى').fill('2026-10-06');
+    await dialog.getByLabel('مرجع تقرير المصدر').fill('Independent-Report');await dialog.getByLabel('ملاحظة مراجعة المصدر').fill('راجعت تقرير المصدر المستقل');
+    await dialog.locator('input[type=file]').setInputFiles({name:'evidence.csv',mimeType:'text/csv',buffer:Buffer.from('kind,external_id,invoice_external_id,record_date,due_date,customer_number,employee_number,currency,amount\ninvoices,0001,,2026-09-01,2026-10-01,C1,E1,USD,100.00\n')});
+    await dialog.getByRole('button',{name:'حفظ',exact:true}).click();expect(writes.some(x=>x.path.endsWith('/detailed'))).toBeFalsy();
+    await choose(page,dialog.getByRole('combobox',{name:'تأكيد نطاق المقارنة',exact:true}),'true');await dialog.getByRole('button',{name:'حفظ',exact:true}).click();await expect(dialog).toHaveCount(0);
+    await page.getByRole('button',{name:'مراجعة الفروقات',exact:true}).click();const table=page.getByRole('table',{name:'مطابقة السجلات المحفوظة'});
+    await expect(table).toBeVisible();await expect(table.getByText('0001',{exact:true})).toBeVisible();await expect(table.getByText('C2',{exact:true})).toBeVisible();
+    await choose(page,page.getByRole('combobox',{name:'نوع فروقات السجلات',exact:true}),'changed_fields');
+    const write=writes.find(x=>x.path.endsWith('/detailed'));expect(write.contentType).toContain('multipart/form-data');expect(write.body).toContain('evidence.csv');expect(write.body).toContain('0001');expect(write.key).toBeTruthy();expect(errors).toEqual([]);
+    if(process.env.TEAMI_CAPTURE_PREVIEW)await page.screenshot({path:'/tmp/teami-record-reconciliation.png',fullPage:true,animations:'disabled'});
 });

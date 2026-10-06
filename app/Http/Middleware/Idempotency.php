@@ -7,6 +7,7 @@ use App\Models\IdempotencyKey;
 use App\Models\Tenant;
 use Closure;
 use Illuminate\Http\Request;
+use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\DB;
 use Symfony\Component\HttpFoundation\Response;
 
@@ -24,6 +25,24 @@ class Idempotency
         $tenantId = $context->getTenantId();
         $endpoint = $request->method().' '.$request->path();
         $hash = hash('sha256', $request->getContent());
+        if ($request->allFiles()) {
+            // Multipart boundaries change between retries; hash values and file bytes.
+            $normalize = function ($value) use (&$normalize) {
+                if ($value instanceof UploadedFile) {
+                    abort_unless($value->isValid(), 422, 'Invalid uploaded file.');
+
+                    return ['name' => $value->getClientOriginalName(), 'sha256' => hash_file('sha256', $value->getRealPath())];
+                }
+                if (is_array($value)) {
+                    ksort($value);
+
+                    return array_map($normalize, $value);
+                }
+
+                return $value;
+            };
+            $hash = hash('sha256', json_encode($normalize($request->all()), JSON_THROW_ON_ERROR));
+        }
 
         return DB::transaction(function () use ($request, $next, $key, $tenantId, $endpoint, $hash) {
             Tenant::query()->whereKey($tenantId)->lockForUpdate()->firstOrFail();

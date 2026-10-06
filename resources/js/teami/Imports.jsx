@@ -5,7 +5,7 @@ import { api, requestKey } from './api';
 import { Notice, PageHeading, QueryState, RecordTable, SectionCard, useQuery } from './components';
 import { rowsOf } from './Launch';
 
-const labels={employees:'الموظفون',customers:'العملاء',invoices:'فواتير المبيعات',receipts:'التحصيلات',returns:'مرتجعات المبيعات',targets:'أهداف المندوبين',compensation:'التعويضات السنوية'};
+const labels={products:'المنتجات ووحداتها',areas:'مناطق الشركة في العراق',customer_locations:'ربط العملاء بالمناطق',invoice_lines:'سطور الفواتير وكميات المنتجات',employees:'الموظفون',customers:'العملاء',invoices:'فواتير المبيعات',receipts:'التحصيلات',returns:'مرتجعات المبيعات',targets:'أهداف المندوبين',compensation:'التعويضات السنوية'};
 const states={validated:'جاهزة للاعتماد',invalid:'تحتاج تصحيحاً',imported:'معتمدة',expired:'انتهت المعاينة'};
 export function Imports({notify}){
     const schemas=useQuery('/advisor/imports/schemas'), history=useQuery('/advisor/imports');
@@ -28,7 +28,8 @@ export function Imports({notify}){
         catch(e){setError(e.message);}finally{inFlight.current=false;setBusy(false);}
     }
     return <div className="stack"><PageHeading title="بيانات الشركة" description="الخطوة الأولى لتجهيز بيانات مستشار المبيعات والموارد البشرية."/>
-        <Notice>استورد الموظفين والعملاء أولاً، ثم الفواتير والتحصيلات والمرتجعات والأهداف. التعويض السنوي منفصل عن المكافأة ويُستورد بفترات غير متداخلة. الفواتير هنا بيانات للتحليل؛ اعتمادها لا يصدر فاتورة قانونية ولا ينفّذ دفعة أو قرار HR.</Notice>
+        <Notice>استورد الموظفين والعملاء والمنتجات والمناطق، ثم اربط العملاء بالمناطق قبل استيراد الفواتير. استورد سطور الفواتير بعد رؤوسها، ثم التحصيلات والمرتجعات. استورد الفواتير والتحصيلات والمرتجعات والأهداف. التعويض السنوي منفصل عن المكافأة ويُستورد بفترات غير متداخلة. الفواتير هنا بيانات للتحليل؛ اعتمادها لا يصدر فاتورة قانونية ولا ينفّذ دفعة أو قرار HR.</Notice>
+        <Notice>المنتجات تستخدم رمزاً ووحدة أساسية ثابتين. سطور الفاتورة بوحدة المنتج الأساسية وبصافي مبلغ موزّع ليطابق رأس الفاتورة؛ لا يضاف مبلغ السطر مرة ثانية إلى مؤشرات المبيعات. المناطق تعتمدها الشركة؛ لا تتضمن الحزمة سكاناً أو حدوداً رسمية.</Notice>
         <SectionCard title="رفع ومعاينة"><QueryState query={schemas}><form className="stack" onSubmit={preview}>
             <div className="form-grid"><Field label="نوع البيانات" required><Select required disabled={busy} value={kind} onChange={e=>{setKind(e.target.value);clear();}}><option value="">اختر نوعاً</option>{rowsOf(schemas.data).map(x=><option value={x.kind} key={x.kind}>{labels[x.kind]}</option>)}</Select></Field>
             <Field label="رمز نظام المصدر" required hint="رمز ثابت مثل primary أو maxcon. نفس الرمز للفواتير وتحصيلاتها؛ لا تغيّره لإعادة إدخال السجلات."><Input value={source} required maxLength={40} pattern="[a-z0-9][a-z0-9_-]*" disabled={busy} dir="ltr" onChange={(_,d)=>{setSource(d.value);setBatch(null);}}/></Field></div>

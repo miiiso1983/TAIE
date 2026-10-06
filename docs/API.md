@@ -174,3 +174,10 @@ See [EXTERNAL-REFERENCES.md](EXTERNAL-REFERENCES.md). Authenticated active-tenan
 | POST | knowledge/external-references/{key}/disable | ai.knowledge.manage | Empty JSON body; excludes source from future retrieval |
 
 Writes support Idempotency-Key. Only catalog keys are accepted; no arbitrary URL fetch. Activation indexes a reviewed editorial summary, not a full third-party article. Source origin and external_metadata are returned by source reads; AI citations include origin, url and publisher. Company documents cannot be added to an external-reference source. Provider configuration and ai worker remain required for indexing. No automated policy adoption or claim of Iraqi legal compliance.
+
+## Data quality, products and Iraq service areas
+
+See [DATA-QUALITY-FOUNDATION.md](DATA-QUALITY-FOUNDATION.md) for additive import schemas, catalog and source-cohort reconciliation endpoints, exact amounts, stale evidence detection and permissions. Control-total matching does not assert global coverage or approve a bonus.
+
+
+Detailed record matching: POST /api/advisor/data/reconciliations/detailed accepts multipart scope, evidence_reference, review_note, acknowledge, file and optional zero-based sheet. CSV/XLSX fixed evidence headers are documented in DATA-QUALITY-FOUNDATION.md. Requires advisor.sales.read + data.sensitive.read + advisor.data.review; import throttling and Idempotency-Key apply. GET reconciliations/{uuid}/differences requires the two read grants, returns 50 saved differences per page; optional kind=invoices/receipts/returns and type=missing_in_teami/unexpected_in_teami/changed_fields. method distinguishes control_totals/record_matching. Detailed snapshots expose record_counts, totals_status and file_sha256, while source/imported records remain encrypted server-side. Matching checks expected identities outside the ordinary cohort to detect changed dates/currencies/parents; financial totals retain original cohort semantics. Coverage remains unconfirmed. No source authentication or cross-program identity merge is asserted.
