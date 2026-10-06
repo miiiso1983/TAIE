@@ -16,7 +16,7 @@ async function fixture(page, { signedIn = true, permissions = allPermissions, mf
     const types = [type];
     page.on('pageerror', e => errors.push(e.message));
     const externalReference={key:'cipd-performance',title:'إدارة الأداء وتطوير الفريق',publisher:'CIPD',url:'https://www.cipd.org/en/knowledge/factsheets/performance-factsheet/',category:'team',summary:'مرجع لتحسين مراجعات الأداء وتطوير الفريق.',reviewed_at:'2026-10-07',recommended:true,status:'not_added'};
-    let businessActivity='general';
+    let businessActivity='general', coverageConfirmed=false;
     const integrationConnections=[], integrationBatches=[];
     const reportRows=[], reportSchedules=[];
     const reportSnapshot={kind:'sales',notes:['التغطية غير مؤكدة؛ طابق المصدر قبل القرار.'],totals:{USD:{net_sales_minor:'10000',collected_minor:'7000',balance_minor:'3000',overdue_balance_minor:'3000',credit_minor:'0'}},previous:{from:'2026-08-02',to:'2026-08-31',totals:{USD:{net_sales_minor:'8000',collected_minor:'6000'}}},evidence:[{uuid:'I1',external_id:'I1',source_system:'primary',employee_name:'موظف تجريبي',currency:'USD',net_sales_minor:'10000',collected_minor:'7000'}]};
@@ -33,6 +33,7 @@ async function fixture(page, { signedIn = true, permissions = allPermissions, mf
         }
         if (request.method() !== 'GET') {
             const data = request.postDataJSON(); writes.push({ path, data, method: request.method(), key: request.headers()['idempotency-key'] });
+            if (path === '/advisor/sales/coverage') {coverageConfirmed=true;return fulfill({data:{uuid:'coverage-1'}},201);}
             if (path === '/advisor/reports') {reportRows.push({uuid:'report-1',kind:data.kind,period_from:data.from,period_to:data.to,as_of:data.as_of,version:1,created_at:'2026-10-05T12:00:00Z',snapshot:reportSnapshot});return fulfill({data:reportRows[0]});}
             if (path === '/advisor/report-schedules') {reportSchedules.push({uuid:'schedule-1',...data,enabled:true,next_run_at:'2026-10-12T06:00:00Z',last_error_code:null});return fulfill({data:reportSchedules[0]},201);}
             if (path === '/advisor/report-schedules/schedule-1/disable') {reportSchedules[0].enabled=false;return fulfill({data:reportSchedules[0]});}
@@ -79,7 +80,7 @@ async function fixture(page, { signedIn = true, permissions = allPermissions, mf
         if (path === '/advisor/bonus-policies') return fulfill({data:{data:[bonusPolicy],current_page:1,last_page:1}});
         if (path === '/advisor/bonus-requests') return fulfill({data:{data:bonusRequests,current_page:1,last_page:1}});
         if (path === '/advisor/bonus-requests/bonus-1') return fulfill({data:bonusRequests[0]});
-        if (path === '/advisor/sales/metrics') return fulfill({data:{filters:{from:u.searchParams.get('from'),to:u.searchParams.get('to'),as_of:u.searchParams.get('as_of')},rows:[{employee_uuid:ids.employee,employee_name:'مندوب الاختبار',employee_number:'E1',currency:'USD',invoice_count:1,sales_minor:'10000',collected_minor:'5000',balance_minor:'5000',overdue_balance_minor:'5000',collection_percent:'50.00'}],quality:{invoice_count:1,recorded_receipt_count:2,latest_financial_import_at:null,coverage_confirmed:false,warnings:['اكتمال الملفات غير مؤكد.']}}});
+        if (path === '/advisor/sales/metrics') return fulfill({data:{filters:{from:u.searchParams.get('from'),to:u.searchParams.get('to'),as_of:u.searchParams.get('as_of')},rows:[{employee_uuid:ids.employee,employee_name:'مندوب الاختبار',employee_number:'E1',currency:'USD',invoice_count:1,sales_minor:'10000',collected_minor:'5000',balance_minor:'5000',overdue_balance_minor:'5000',collection_percent:'50.00'}],quality:{invoice_count:1,recorded_receipt_count:2,latest_financial_import_at:null,coverage_confirmed:coverageConfirmed,fingerprint:'a'.repeat(64),coverage:{status:coverageConfirmed?'confirmed':'unconfirmed'},reconciliation:{USD:{invoice_count:1,receipt_count:2,return_count:0,sales_minor:'10000',returns_minor:'0',collected_minor:'5000',balance_minor:'5000',credit_minor:'0',difference_minor:'0',balanced:true}},missing:{last_invoice_date:'2026-09-01',last_receipt_date:'2026-09-15',invoices_without_receipts:0},sources:[],warnings:['اكتمال الملفات غير مؤكد.']}}});
         if (path === '/advisor/sales/invoices') return fulfill({data:[{uuid:'invoice',external_id:'I1',source_system:'primary',invoice_date:'2026-09-01',due_date:'2026-10-01',currency:'USD',sales_minor:'10000',collected_minor:'5000',balance_minor:'5000',receipt_count:2}],meta:{total:1,current_page:1,last_page:1}});
         if (path === '/advisor/imports/schemas') return fulfill({data:[{kind:'customers',columns:['customer_number','name','email'],required:['customer_number','name']}]});
         if (path === '/advisor/imports') return fulfill({data:{data:[],current_page:1,last_page:1}});
@@ -430,4 +431,29 @@ test('External library selects activity and requires review before enabling a re
     await page.getByRole('button',{name:'إيقاف استخدامه',exact:true}).click();await expect(page.getByRole('button',{name:'إعادة الإضافة للمساعد',exact:true})).toBeVisible();
     expect(writes.find(x=>x.path.endsWith('/activate')).data).toMatchObject({acknowledge:true});expect(errors).toEqual([]);
     if(process.env.TEAMI_CAPTURE_PREVIEW){await page.evaluate(()=>document.fonts.ready);await page.screenshot({path:'/tmp/teami-external-library.png',fullPage:true,animations:'disabled'});}
+});
+
+
+test('coverage confirmation requires an explicit source match and preserves minor units', async ({page}) => {
+    const state=await fixture(page,{permissions:[...allPermissions,'advisor.sales.read','data.import.manage']});
+    await page.goto('/');
+    await page.locator('.account-button').click();
+    await page.getByRole('menuitem',{name:'تحليل الأداء',exact:true}).click();
+    await expect(page.getByRole('table',{name:'المصالحة حسب العملة'})).toBeVisible();
+    await expect(page.getByRole('button',{name:'مطابقة المصدر وتأكيد التغطية'})).toBeDisabled();
+    await page.getByLabel('عملة التقرير').fill('USD');
+    await page.getByRole('option',{name:'USD',exact:true}).click();
+    await page.getByRole('button',{name:'عرض التحليل',exact:true}).click();
+    await page.getByRole('button',{name:'مطابقة المصدر وتأكيد التغطية'}).click();
+    const dialog=page.getByRole('dialog');
+    for (const [label,value] of [['عدد الفواتير بالمصدر','1'],['عدد التحصيلات بالمصدر','2'],['عدد المرتجعات بالمصدر','0'],['المبيعات بوحدات العملة الصغيرة','10000'],['المرتجعات بوحدات العملة الصغيرة','0'],['التحصيل بوحدات العملة الصغيرة','5000'],['المصدر ونطاق المطابقة وسبب اكتمال البيانات','تمت مطابقة كشف المصدر المستقل لجميع الفواتير المختارة.']]) await dialog.getByLabel(label,{exact:true}).fill(value);
+    await dialog.getByLabel('إقرار المراجع').fill('طابقت');
+    await page.getByRole('option',{name:'طابقت المصدر لهذه الفترة والعملة وأؤكد التغطية'}).click();
+    await dialog.getByRole('button',{name:'حفظ',exact:true}).click();
+    await expect(page.getByText('تغطية مؤكدة بإقرار بشري للفترة والعملة المحددتين.',{exact:true})).toBeVisible();
+    const write=state.writes.find(x=>x.path==='/advisor/sales/coverage');
+    expect(write.data.expected.sales_minor).toBe('10000');
+    expect(write.data.currency).toBe('USD');
+    expect(write.data.acknowledge).toBe(true);
+    expect(state.errors).toEqual([]);
 });

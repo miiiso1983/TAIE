@@ -70,6 +70,7 @@ Route::middleware(['throttle:api', 'auth:sanctum', 'tenant.resolve', 'tenant.mem
         Route::post('/bonus-requests/{uuid}/decision', [BonusController::class, 'decide'])->middleware(['permission:advisor.bonus.approve', 'idempotency']);
     });
 
+    Route::post('/advisor/sales/coverage', [SalesMetricsController::class, 'confirmCoverage'])->middleware(['permission:advisor.sales.read', 'permission:data.sensitive.read', 'permission:data.import.manage', 'idempotency']);
     Route::get('/advisor/sales/metrics', [SalesMetricsController::class, 'metrics'])->middleware(['permission:advisor.sales.read', 'permission:data.sensitive.read']);
     Route::get('/advisor/sales/invoices', [SalesMetricsController::class, 'invoices'])->middleware(['permission:advisor.sales.read', 'permission:data.sensitive.read']);
     Route::prefix('advisor/imports')->middleware(['permission:data.import.manage', 'permission:data.sensitive.read'])->group(function () {
