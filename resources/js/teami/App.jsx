@@ -1,0 +1,137 @@
+import { Integrations } from './Integrations';
+import { Reports } from './Reports';
+import { Bonus } from './Bonus';
+import { Analytics } from './Analytics';
+import { Imports } from './Imports';
+import React, { useEffect, useState } from 'react';
+import {
+    Avatar, Badge, Button, Divider, DrawerBody, DrawerHeader, DrawerHeaderTitle,
+    Field, FluentProvider, Input, Menu, MenuItem, MenuList, MenuPopover, MenuTrigger,
+    OverlayDrawer, Spinner, Toast, ToastBody, Toaster, ToastTitle, Tooltip,
+    useId, useToastController, createDarkTheme, createLightTheme,
+} from '@fluentui/react-components';
+import {
+    Home24Regular, People24Regular, CalendarLtr24Regular, Wallet24Regular, Building24Regular,
+    TargetArrow24Regular, BookOpen24Regular, Sparkle24Regular, Payment24Regular,
+    Navigation24Regular, Dismiss24Regular, WeatherMoon24Regular, WeatherSunny24Regular,
+    SignOut24Regular, ArrowLeft24Regular, ShieldCheckmark24Regular, ChevronDown20Regular,
+} from '@fluentui/react-icons';
+import { api, clearSession } from './api';
+import { FormDialog, Notice } from './components';
+import { Employees, Leave } from './HR';
+import { Customers, Home, Knowledge } from './Pages';
+
+// Editorial palette: wine actions, lilac selected surfaces, violet text links.
+import { Administration, Operations, AccountSecurity, BillingWorkspace as Billing, PayrollWorkspace as Payroll, OpportunityWorkspace as Opportunities } from './Launch';
+
+const editorialBrand = {
+    10: '#170A0D', 20: '#241015', 30: '#30151B', 40: '#381920',
+    50: '#421D24', 60: '#542832', 70: '#66333F', 80: '#79414E',
+    90: '#8C5260', 100: '#A06977', 110: '#B5828F', 120: '#C89CA6',
+    130: '#DAB6BE', 140: '#E7CFD4', 150: '#F1E4E7', 160: '#FAF4F5',
+};
+const flatShadows = { shadow2: 'none', shadow4: 'none', shadow8: 'none', shadow16: 'none' };
+const lightTheme = {
+    ...createLightTheme(editorialBrand), ...flatShadows,
+    colorNeutralBackground1: '#FFFFFF', colorNeutralBackground2: '#F2F0EB', colorNeutralBackground3: '#EAE7E1',
+    colorNeutralForeground1: '#292827', colorNeutralForeground2: '#494542', colorNeutralForeground3: '#666666',
+    colorNeutralStroke1: '#C9C4BC', colorNeutralStroke2: '#E3E3E2',
+    colorBrandBackground: '#421D24', colorBrandBackgroundHover: '#542832', colorBrandBackgroundPressed: '#30151B',
+    colorBrandBackground2: '#EDE7FA', colorBrandBackground2Hover: '#E2D8F5', colorBrandBackground2Pressed: '#D4C7FF',
+    colorBrandForeground1: '#421D24', colorBrandForeground2: '#421D24', colorBrandStroke1: '#421D24', colorBrandStroke2: '#D4C7FF',
+    colorNeutralForegroundOnBrand: '#FFFFFF', colorCompoundBrandBackground: '#421D24', colorCompoundBrandBackgroundHover: '#542832', colorCompoundBrandBackgroundPressed: '#30151B',
+};
+const darkTheme = {
+    ...createDarkTheme(editorialBrand), ...flatShadows,
+    colorNeutralBackground1: '#302B2C', colorNeutralBackground2: '#242021', colorNeutralBackground3: '#3B3436',
+    colorNeutralForeground1: '#F2F0EB', colorNeutralForeground2: '#DDD6D0', colorNeutralForeground3: '#BFB5AE',
+    colorNeutralStroke1: '#716465', colorNeutralStroke2: '#51474A',
+    colorBrandBackground: '#421D24', colorBrandBackgroundHover: '#542832', colorBrandBackgroundPressed: '#30151B',
+    colorBrandBackground2: '#45394E', colorBrandForeground1: '#E9DBE0', colorBrandForeground2: '#E9DBE0', colorBrandStroke2: '#695576',
+    colorNeutralForegroundOnBrand: '#FFFFFF', colorCompoundBrandBackground: '#421D24',
+};
+
+const navigation = [
+    { key: 'integrations', label: 'التكاملات', icon: Building24Regular, permissions: ['integration.read', 'data.sensitive.read'], all: true, menu: true },
+    { key: 'operations', label: 'عمليات الشركة', icon: People24Regular, permissions: ['hr.department.read','hr.position.read','hr.attendance.read','hr.compensation.read','hr.onboarding.read','hr.performance.read','hr.recruitment.read','hr.employee_relations.read','sales.lead.read','sales.contact.read','sales.activity.read','sales.target.read','sales.forecast.read'] },
+    { key: 'reports', label: 'تقارير المستشار', icon: TargetArrow24Regular, permissions: ['advisor.report.read','data.sensitive.read'], all: true, menu: true },
+    { key: 'bonus', label: 'السياسات والموافقات', icon: ShieldCheckmark24Regular, permissions: ['advisor.bonus.read','data.sensitive.read','hr.compensation.read'], all: true, menu: true },
+    { key: 'analytics', label: 'تحليل الأداء', icon: TargetArrow24Regular, permissions: ['advisor.sales.read','data.sensitive.read'], all: true, menu: true },
+    { key: 'imports', label: 'بيانات الشركة', icon: People24Regular, permissions: ['data.import.manage','data.sensitive.read'], all: true, menu: true },
+    { key: 'administration', label: 'المستخدمون', icon: People24Regular, permissions: ['identity.membership.manage'], menu: true },
+    { key: 'security', label: 'أمان الحساب', icon: ShieldCheckmark24Regular, menu: true },
+    { key: 'home', label: 'الرئيسية', icon: Home24Regular, group: 'مساحة العمل' },
+    { key: 'employees', label: 'الموظفون', icon: People24Regular, group: 'الموارد البشرية', permissions: ['hr.employee.read'] },
+    { key: 'leave', label: 'الإجازات', icon: CalendarLtr24Regular, permissions: ['hr.leave.read'] },
+    { key: 'payroll', label: 'الرواتب', icon: Wallet24Regular, permissions: ['hr.payroll.read', 'data.sensitive.read'], all: true },
+    { key: 'customers', label: 'العملاء', icon: Building24Regular, group: 'المبيعات', permissions: ['sales.customer.read'] },
+    { key: 'opportunities', label: 'الفرص التجارية', icon: TargetArrow24Regular, permissions: ['sales.opportunity.read'] },
+    { key: 'knowledge', label: 'المعرفة والمساعد', icon: BookOpen24Regular, group: 'ذكاء الشركة', permissions: ['ai.knowledge.read', 'ai.ask'] },
+    { key: 'billing', label: 'الخطة والاستخدام', icon: Payment24Regular, group: 'الإدارة', permissions: ['billing.subscription.read', 'billing.usage.read'] },
+];
+const currentPage = () => navigation.some(x => x.key === location.hash.slice(1)) ? location.hash.slice(1) : 'home';
+function Brand({ small = false }) {
+    return <div className={`brand ${small ? 'small' : ''}`}><span className="brand-symbol" aria-hidden="true">T</span><div><strong>Teami</strong><span>AI Enterprise</span></div></div>;
+}
+function Login({ onAuthenticated }) {
+    const [values, setValues] = useState({ tenant: localStorage.getItem('teami_tenant') || '', email: '', password: '', mfa_code: '' });
+    const [busy, setBusy] = useState(false), [error, setError] = useState(''), [mfa, setMfa] = useState(false);
+    const [recovery, setRecovery] = useState(() => location.pathname.startsWith('/reset-password/') ? 'reset' : null);
+    async function login(event) {
+        event.preventDefault(); if (busy) return; setBusy(true); setError('');
+        try {
+            const data = { tenant: values.tenant.trim(), email: values.email.trim(), password: values.password, ...(mfa ? { mfa_code: values.mfa_code.trim() } : {}) };
+            const response = await api('/auth/login', { method: 'POST', authenticated: false, data });
+            if (response.error?.code === 'MFA_REQUIRED') { setMfa(true); setError('أدخل رمز المصادقة الثنائية لإكمال الدخول.'); return; }
+            if (!response.data?.token) throw new Error('تعذر إكمال تسجيل الدخول.');
+            localStorage.setItem('teami_token', response.data.token); localStorage.setItem('teami_tenant', data.tenant); localStorage.setItem('teami_user', JSON.stringify(response.data.user));
+            onAuthenticated();
+        } catch (error) { setError(error.message); } finally { setBusy(false); }
+    }
+    const set = key => (_, data) => setValues(x => ({ ...x, [key]: data.value }));
+    return <><div className="login-layout"><section className="login-story"><Brand /><div className="login-story-copy"><Badge appearance="tint" color="brand">مساحة عمل لفريقك</Badge><h1>كل فريقك.<br /><span>في مساحة واحدة.</span></h1><p>موارد بشرية، علاقات عملاء ومعرفة الشركة.<br />تجربة عمل أوضح تبدأ من هنا.</p><div className="story-capabilities">{[[People24Regular, 'الموارد البشرية', 'وظائف، إجازات ورواتب'], [TargetArrow24Regular, 'إدارة المبيعات', 'عملاء وفرص تجارية'], [Sparkle24Regular, 'معرفة الشركة', 'مساعد يعتمد على مستنداتك']].map(([Icon, title, text]) => <div className="story-capability" key={title}><span><Icon /></span><div><strong>{title}</strong><small>{text}</small></div></div>)}</div></div><div className="login-assurance"><ShieldCheckmark24Regular />مساحة مستقلة لكل شركة، وصلاحيات لكل دور.</div></section>
+        <section className="login-form-side"><form className="login-form" onSubmit={login}><div className="mobile-brand"><Brand /></div><span className="eyebrow">أهلاً بعودتك</span><h2>تسجيل الدخول</h2><p className="muted">ادخل إلى مساحة شركتك في Teami.</p><div className="stack login-fields"><Field label="معرّف الشركة" required><Input name="tenant" value={values.tenant} onChange={set('tenant')} autoComplete="organization" placeholder="مثال: teami" required disabled={busy} /></Field><Field label="البريد الإلكتروني" required><Input name="email" type="email" value={values.email} onChange={set('email')} autoComplete="username" placeholder="name@company.com" required disabled={busy} /></Field><Field label="كلمة المرور" required><Input name="password" type="password" value={values.password} onChange={set('password')} autoComplete="current-password" required disabled={busy} /></Field>{mfa && <Field label="رمز المصادقة الثنائية" required><Input name="mfa_code" value={values.mfa_code} onChange={set('mfa_code')} autoComplete="one-time-code" required disabled={busy} autoFocus /></Field>}{error && <Notice intent={mfa ? 'info' : 'error'}>{error}</Notice>}<Button appearance="primary" size="large" type="submit" disabled={busy} icon={busy ? <Spinner size="tiny" /> : <ArrowLeft24Regular />} iconPosition="after">{busy ? 'جارٍ التحقق…' : 'تسجيل الدخول'}</Button></div><Button appearance="subtle" type="button" onClick={() => setRecovery('forgot')}>نسيت كلمة المرور؟</Button><p className="login-footnote"><ShieldCheckmark24Regular />الوصول حسب عضويتك وصلاحياتك في الشركة.</p></form></section>
+    </div>{recovery && <FormDialog title={recovery === 'reset' ? 'إعادة تعيين كلمة المرور' : 'استعادة الحساب'} initial={{ email: new URLSearchParams(location.search).get('email') ?? '' }} fields={[
+        { name:'email',label:'البريد الإلكتروني',type:'email',required:true },
+        ...(recovery==='reset'?[{name:'password',label:'كلمة المرور الجديدة',type:'password',required:true},{name:'password_confirmation',label:'تأكيد كلمة المرور',type:'password',required:true}]:[]),
+    ]} onClose={()=>setRecovery(null)} save={data=>api(recovery==='reset'?'/auth/reset-password':'/auth/forgot-password',{method:'POST',authenticated:false,data:{...data,...(recovery==='reset'?{token:decodeURIComponent(location.pathname.split('/').at(-1))}:{})}})} onSaved={()=>{setRecovery(null);if(location.pathname.startsWith('/reset-password/'))history.replaceState(null,'','/');setError('إذا كان الحساب موجوداً ستصل تعليمات الاستعادة إلى بريده. عند إعادة التعيين، سجّل الدخول بكلمة المرور الجديدة.');}} />}</>;
+}
+function Workspace({ context, themeMode, toggleTheme, logout }) {
+    const [page, setPage] = useState(currentPage), [mobileOpen, setMobileOpen] = useState(false);
+    const toasterId = useId('teami-toaster'), { dispatchToast } = useToastController(toasterId);
+    let user = {}; try { user = JSON.parse(localStorage.getItem('teami_user') || '{}'); } catch { /* Presentation only; authorization is server-owned. */ }
+    const company = context.tenant, permissions = context.permissions || [], can = permission => permissions.includes(permission);
+    const allowed = item => !item.permissions || (item.all ? item.permissions.every(can) : item.permissions.some(can));
+    const active = navigation.find(x => x.key === page) || navigation[0];
+    const navigate = next => { setPage(next); location.hash = next; setMobileOpen(false); };
+    useEffect(() => { const onHash = () => setPage(currentPage()); window.addEventListener('hashchange', onHash); return () => window.removeEventListener('hashchange', onHash); }, []);
+    const notify = message => dispatchToast(<Toast><ToastTitle>{message}</ToastTitle><ToastBody>تم تحديث بيانات مساحة العمل.</ToastBody></Toast>, { intent: 'success' });
+    const advisorNavigation = navigation.filter(item => ['reports', 'bonus', 'analytics', 'imports', 'integrations'].includes(item.key) && allowed(item));
+    const nav = <nav aria-label="التنقل الرئيسي" className="nav-list">{navigation.filter(item => !item.menu).map(item => <React.Fragment key={item.key}>{item.group && <div className="nav-group">{item.group}</div>}<Button data-page={item.key} appearance="subtle" icon={<item.icon />} className={`nav-button ${page === item.key ? 'selected' : ''}`} aria-current={page === item.key ? 'page' : undefined} disabled={!allowed(item)} onClick={() => navigate(item.key)}>{item.label}</Button></React.Fragment>)}</nav>;
+    const props = { can, company, user: { ...user, ...context.user }, notify, navigate, logout };
+    const pages = { integrations: Integrations, reports: Reports, bonus: Bonus, analytics: Analytics, imports: Imports, operations: Operations, administration: Administration, security: AccountSecurity, home: Home, employees: Employees, leave: Leave, customers: Customers, opportunities: Opportunities, payroll: Payroll, knowledge: Knowledge, billing: Billing };
+    const Page = pages[page] || Home;
+    return <div className="workspace"><a className="skip-link" href="#main-content" onClick={event => { event.preventDefault(); document.getElementById('main-content')?.focus(); }}>انتقل إلى المحتوى</a><div className="workspace-main"><header className="topbar"><div className="topbar-brand"><Button className="mobile-menu" appearance="subtle" icon={<Navigation24Regular />} aria-label="فتح القائمة" onClick={() => setMobileOpen(true)} /><Brand small /></div><div className="desktop-navigation">{nav}</div><div className="topbar-actions"><Tooltip content={themeMode === 'dark' ? 'الوضع الفاتح' : 'الوضع الداكن'} relationship="label"><Button appearance="subtle" icon={themeMode === 'dark' ? <WeatherSunny24Regular /> : <WeatherMoon24Regular />} aria-label={themeMode === 'dark' ? 'الوضع الفاتح' : 'الوضع الداكن'} onClick={toggleTheme} /></Tooltip><Divider vertical /><Menu><MenuTrigger disableButtonEnhancement><Button appearance="subtle" className="account-button" icon={<ChevronDown20Regular />} iconPosition="after"><Avatar name={user.name || user.email || 'مستخدم'} size={32} color="brand" /><span className="account-name">{user.name || 'حسابي'}</span></Button></MenuTrigger><MenuPopover><div className="account-summary"><strong>{user.name || 'مستخدم'}</strong><span dir="ltr">{user.email || ''}</span><span>{company.name}</span></div><MenuList>{can('integration.read') && can('data.sensitive.read') && <MenuItem onClick={() => navigate('integrations')}>التكاملات</MenuItem>}{can('advisor.report.read') && can('data.sensitive.read') && <MenuItem onClick={() => navigate('reports')}>تقارير المستشار</MenuItem>}{can('advisor.bonus.read') && can('data.sensitive.read') && can('hr.compensation.read') && <MenuItem onClick={() => navigate('bonus')}>السياسات والموافقات</MenuItem>}{can('advisor.sales.read') && can('data.sensitive.read') && <MenuItem onClick={() => navigate('analytics')}>تحليل الأداء</MenuItem>}{can('data.import.manage') && can('data.sensitive.read') && <MenuItem onClick={() => navigate('imports')}>بيانات الشركة</MenuItem>}{can('identity.membership.manage') && <MenuItem onClick={() => navigate('administration')}>المستخدمون والصلاحيات</MenuItem>}<MenuItem onClick={() => navigate('security')}>أمان الحساب</MenuItem><MenuItem icon={<SignOut24Regular />} onClick={logout}>تسجيل الخروج</MenuItem></MenuList></MenuPopover></Menu></div></header>
+            <div className="workspace-strip"><div className="workspace-context"><span className="workspace-monogram" aria-hidden="true">{company.name?.slice(0, 1)}</span><span>{company.name}</span><span className="context-divider">/</span><strong>{active.label}</strong></div><nav aria-label="أدوات المستشار" className="advisor-navigation">{advisorNavigation.map(item => <Button key={item.key} appearance="subtle" className={`advisor-nav ${page === item.key ? 'selected' : ''}`} aria-current={page === item.key ? 'page' : undefined} icon={<item.icon />} onClick={() => navigate(item.key)}>{item.label}</Button>)}</nav></div>
+            <main id="main-content" tabIndex={-1} className="content" key={page}>{allowed(active) ? <Page {...props} /> : <Notice intent="warning">لا يتضمن دورك صلاحية الوصول إلى هذا القسم.</Notice>}</main>
+        </div><OverlayDrawer open={mobileOpen} position="start" onOpenChange={(_, d) => setMobileOpen(d.open)}><DrawerHeader><DrawerHeaderTitle action={<Button appearance="subtle" icon={<Dismiss24Regular />} aria-label="إغلاق القائمة" onClick={() => setMobileOpen(false)} />}><Brand small /></DrawerHeaderTitle></DrawerHeader><DrawerBody><div className="drawer-company">{company.name}</div>{nav}<div className="nav-group">المستشار والإدارة</div>{navigation.filter(item => item.menu && allowed(item)).map(item => <Button key={item.key} data-page={item.key} className="nav-button" appearance="subtle" icon={<item.icon />} onClick={() => navigate(item.key)}>{item.label}</Button>)}</DrawerBody></OverlayDrawer><Toaster toasterId={toasterId} position="bottom-end" />
+    </div>;
+}
+export default function App() {
+    const [themeMode, setThemeMode] = useState(() => localStorage.getItem('teami_theme') === 'dark' ? 'dark' : 'light');
+    const [context, setContext] = useState(null), [booting, setBooting] = useState(!!localStorage.getItem('teami_token')), [bootError, setBootError] = useState(''), [attempt, setAttempt] = useState(0);
+    useEffect(() => {
+        const controller = new AbortController();
+        if (!localStorage.getItem('teami_token')) { setBooting(false); return; }
+        setBooting(true); setBootError('');
+        api('/tenant/context', { signal: controller.signal }).then(r => { if (!controller.signal.aborted) setContext(r.data); }).catch(error => { if (!controller.signal.aborted && error.status !== 401) setBootError(error.message); }).finally(() => { if (!controller.signal.aborted) setBooting(false); });
+        return () => controller.abort();
+    }, [attempt]);
+    useEffect(() => { const expired = () => { clearSession(); setContext(null); setBootError(''); }; window.addEventListener('teami:unauthorized', expired); return () => window.removeEventListener('teami:unauthorized', expired); }, []);
+    async function logout() { try { await api('/auth/logout', { method: 'POST' }); } catch { /* Local logout remains available if the server cannot be reached. */ } clearSession(); setContext(null); setBootError(''); location.hash = ''; }
+    const toggleTheme = () => setThemeMode(mode => { const next = mode === 'dark' ? 'light' : 'dark'; localStorage.setItem('teami_theme', next); return next; });
+    const theme = { ...(themeMode === 'dark' ? darkTheme : lightTheme), fontFamilyBase: '"Almarai", Inter, "Segoe UI", sans-serif' };
+    return <FluentProvider theme={theme} dir="rtl" className="teami-provider" data-theme={themeMode}>
+        {booting ? <div className="boot-screen"><Brand /><Spinner label="جارٍ فتح مساحة العمل…" /></div> : bootError ? <div className="boot-screen"><Brand /><Notice intent="error">{bootError}</Notice><div className="actions"><Button appearance="primary" onClick={() => setAttempt(x => x + 1)}>إعادة المحاولة</Button><Button onClick={logout}>تسجيل الخروج</Button></div></div> : context ? <Workspace context={context} themeMode={themeMode} toggleTheme={toggleTheme} logout={logout} /> : <Login onAuthenticated={() => setAttempt(x => x + 1)} />}
+    </FluentProvider>;
+}

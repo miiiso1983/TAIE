@@ -1,0 +1,2 @@
+# crontab for the application user; keep storage/logs writable.
+* * * * * cd /srv/teami/current && /usr/bin/php8.4 artisan schedule:run >> /srv/teami/shared/storage/logs/scheduler.log 2>&1

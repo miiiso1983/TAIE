@@ -1,0 +1,123 @@
+[
+  {
+    "key": "ilo-work",
+    "title": "معايير العمل وسياسات الموارد البشرية",
+    "publisher": "ILO",
+    "url": "https://www.ilo.org/ilo-helpdesk-business-international-labour-standards",
+    "category": "policies",
+    "activities": [
+      "general"
+    ],
+    "summary": "مرجع لمبادئ العمل والعلاقات المهنية المسؤولة. يساعد في مراجعة سياسات الموظفين؛ لا يحدد القانون المحلي أو شروط العمل العراقية.",
+    "published_at": null,
+    "reviewed_at": "2026-10-07",
+    "jurisdiction": "international",
+    "content_type": "editorial_summary"
+  },
+  {
+    "key": "who-distribution",
+    "title": "التخزين والتوزيع الجيد للمنتجات الطبية",
+    "publisher": "WHO",
+    "url": "https://www.who.int/publications/m/item/trs-1025-annex-7",
+    "category": "policies",
+    "activities": [
+      "pharma",
+      "distribution"
+    ],
+    "summary": "يتناول المخاطر عبر شراء المنتجات الطبية وتخزينها ونقلها وتوزيعها. يفيد في مراجعة إجراءات سلسلة التوريد الدوائية؛ تطبيقه يحتاج متطلبات الجهة المحلية المختصة.",
+    "published_at": "2020-06-17",
+    "reviewed_at": "2026-10-07",
+    "jurisdiction": "international",
+    "content_type": "editorial_summary"
+  },
+  {
+    "key": "who-cold-chain",
+    "title": "نقل وتخزين الأدوية الحساسة للحرارة",
+    "publisher": "WHO",
+    "url": "https://www.who.int/publications/m/item/trs961-annex9-modelguidanceforstoragetransport/",
+    "category": "policies",
+    "activities": [
+      "pharma"
+    ],
+    "summary": "مرجع للتخزين والتوزيع الآمن للمنتجات الدوائية الحساسة للوقت والحرارة، مع أولوية التشريعات المحلية. راجع الإصدار الحالي والمتطلبات الخاصة بالمنتج قبل التطبيق.",
+    "published_at": "2011-08-02",
+    "reviewed_at": "2026-10-07",
+    "jurisdiction": "international",
+    "content_type": "editorial_summary"
+  },
+  {
+    "key": "owasp-security",
+    "title": "اختبار أمن تطبيقات الويب",
+    "publisher": "OWASP",
+    "url": "https://owasp.org/projects/web-security-testing-guide",
+    "category": "policies",
+    "activities": [
+      "technology"
+    ],
+    "summary": "مرجع لاختبارات أمن تطبيقات الويب. يفيد شركات البرمجيات في إعداد إجراءات فحص الأمان ومراجعتها، ولا يمثل شهادة امتثال أو سياسة شركة معتمدة.",
+    "published_at": null,
+    "reviewed_at": "2026-10-07",
+    "jurisdiction": "international",
+    "content_type": "editorial_summary"
+  },
+  {
+    "key": "cipd-performance",
+    "title": "إدارة الأداء وتطوير الفريق",
+    "publisher": "CIPD",
+    "url": "https://www.cipd.org/en/knowledge/factsheets/performance-factsheet/",
+    "category": "team",
+    "activities": [
+      "general"
+    ],
+    "summary": "إدارة الأداء عملية مستمرة؛ تتكيف الأهداف مع أولويات العمل وتدعمها تغذية راجعة منتظمة تركز على التحسين. يفيد في تصميم مراجعات الأداء وخطط تطوير الفريق.",
+    "published_at": null,
+    "reviewed_at": "2026-10-07",
+    "jurisdiction": "international",
+    "content_type": "editorial_summary"
+  },
+  {
+    "key": "cipd-engagement",
+    "title": "مشاركة الموظفين وصوت الفريق",
+    "publisher": "CIPD",
+    "url": "https://www.cipd.org/en/topics/employee-engagement/",
+    "category": "team",
+    "activities": [
+      "general"
+    ],
+    "summary": "مرجع لفهم ارتباط الموظفين بالمؤسسة وقياسه، ولتطوير قنوات التعبير والمشاركة. استخدمه لتوجيه حوار الفريق ومراجعة الممارسات الإدارية.",
+    "published_at": null,
+    "reviewed_at": "2026-10-07",
+    "jurisdiction": "international",
+    "content_type": "editorial_summary"
+  },
+  {
+    "key": "salesforce-pipeline",
+    "title": "تطوير مسار المبيعات وتأهيل الفرص",
+    "publisher": "Salesforce Trailhead",
+    "url": "https://trailhead.salesforce.com/content/learn/modules/sales-pipeline-basics/grow-your-sales-pipeline",
+    "category": "sales",
+    "activities": [
+      "general"
+    ],
+    "summary": "يتناول تأهيل العملاء المحتملين وفق ملاءمتهم للسوق المستهدف وفهم احتياجاتهم قبل الانتقال إلى عرض البيع. يفيد في مراجعة مراحل الفرص ومتابعتها.",
+    "published_at": null,
+    "reviewed_at": "2026-10-07",
+    "jurisdiction": "international",
+    "content_type": "editorial_summary"
+  },
+  {
+    "key": "salesforce-customers",
+    "title": "إدارة العملاء والمتابعة بعد البيع",
+    "publisher": "Salesforce Trailhead",
+    "url": "https://trailhead.salesforce.com/content/learn/modules/sales-for-small-business/manage-leads-and-sales-pipelines",
+    "category": "customers",
+    "activities": [
+      "general"
+    ],
+    "summary": "تنظيم معلومات العميل وسجل التفاعلات يدعم المتابعة وتطوير العلاقة بعد البيع. مرجع تعليمي من مزود تجاري، وليس توصية بشراء برنامج محدد.",
+    "published_at": null,
+    "reviewed_at": "2026-10-07",
+    "jurisdiction": "international",
+    "content_type": "editorial_summary"
+  }
+]

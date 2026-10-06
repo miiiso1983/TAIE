@@ -1,0 +1,15 @@
+[program:teami-worker]
+process_name=%(program_name)s_%(process_num)02d
+command=/usr/bin/php8.4 /srv/teami/current/artisan queue:work redis --queue=critical,ai,rag,documents,notifications,billing,analytics,default --sleep=1 --tries=3 --timeout=120 --max-time=3600
+directory=/srv/teami/current
+user=www-data
+numprocs=2
+autostart=true
+autorestart=true
+stopasgroup=true
+killasgroup=true
+stopwaitsecs=180
+redirect_stderr=true
+stdout_logfile=/srv/teami/shared/storage/logs/worker.log
+stdout_logfile_maxbytes=10MB
+stdout_logfile_backups=3

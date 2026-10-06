@@ -1,0 +1,17 @@
+# Install inside an existing HTTPS server block with a real certificate.
+# Replace the root and PHP socket for your server. Never serve the project root.
+root /srv/teami/current/public;
+index index.php;
+charset utf-8;
+client_max_body_size 12m;
+location / { try_files $uri $uri/ /index.php?$query_string; }
+location = /index.php {
+    include fastcgi_params;
+    fastcgi_param SCRIPT_FILENAME $realpath_root$fastcgi_script_name;
+    fastcgi_param DOCUMENT_ROOT $realpath_root;
+    fastcgi_pass unix:/run/php/php8.4-fpm.sock;
+    fastcgi_read_timeout 65;
+}
+location ~ \.php$ { return 404; }
+location ~ /\.(?!well-known).* { deny all; }
+location ~* \.(?:css|js|webp|svg|woff2)$ { expires 7d; try_files $uri =404; }

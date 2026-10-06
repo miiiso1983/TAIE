@@ -1,0 +1,23 @@
+import React, { useState } from 'react';
+import { Badge, Button, Card, Field, Input } from '@fluentui/react-components';
+import { api, requestKey } from './api';
+import { FormDialog, Notice, QueryState, SearchableSelect, SectionCard, useQuery } from './components';
+
+const categories = { policies: 'سياسات حسب النشاط', sales: 'تطوير المبيعات', team: 'إدارة الفريق', customers: 'إدارة العملاء' };
+export function ExternalReferences({ can, notify, onChanged }) {
+    const q = useQuery(can('ai.knowledge.read') ? '/knowledge/external-references' : null);
+    const [category, setCategory] = useState(''), [search, setSearch] = useState(''), [reference, setReference] = useState(null), [busy, setBusy] = useState(false), [error, setError] = useState('');
+    if (!can('ai.knowledge.read')) return null;
+    const data = q.data?.data;
+    const filtered = (data?.references ?? []).filter(x => (!category || x.category === category) && `${x.title} ${x.publisher} ${x.summary}`.toLocaleLowerCase().includes(search.toLocaleLowerCase()));
+    async function mutate(path, body, method = 'POST') {
+        if (busy) return; setBusy(true); setError('');
+        try { await api(path, { method, data: body, key: requestKey() }); q.refresh(); onChanged?.(); notify('تم تحديث المراجع الخارجية'); }
+        catch (e) { setError(e.message); } finally { setBusy(false); }
+    }
+    return <SectionCard title="المراجع الخارجية والتطوير"><Notice>هذه مراجع إرشادية دولية وليست سياسات شركتك أو نصوص القانون العراقي. إضافة المرجع تتيح ملخصاً تحريرياً موجزاً للمساعد بعد الفهرسة؛ لا تنسخ المقال الكامل ولا تعتمد سياسة تلقائياً.</Notice>
+        <QueryState query={q}>{data && <><div className="reference-filters"><Field label="نشاط الشركة"><SearchableSelect value={data.activity} disabled={!can('ai.knowledge.manage') || busy} onChange={e => mutate('/knowledge/business-activity', { activity: e.target.value }, 'PATCH')}>{data.activities.map(x => <option key={x.value} value={x.value}>{x.label}</option>)}</SearchableSelect></Field><Field label="مجال المرجع"><SearchableSelect value={category} onChange={e => setCategory(e.target.value)}><option value="">جميع المجالات</option>{Object.entries(categories).map(([key, label]) => <option key={key} value={key}>{label}</option>)}</SearchableSelect></Field><Field label="البحث في المراجع"><Input value={search} placeholder="اسم المرجع أو الجهة" onChange={(_, d) => setSearch(d.value)} /></Field></div>
+            <div className="reference-grid">{filtered.sort((a,b) => Number(b.recommended) - Number(a.recommended)).map(x => <Card key={x.key} className="reference-card"><div className="reference-card-meta"><span>{x.publisher} · {categories[x.category]}</span>{x.recommended && <Badge appearance="tint" color="subtle">مناسب للنشاط</Badge>}</div><h3>{x.title}</h3><p>{x.summary}</p><span className="caption">مراجعة الملخص: {x.reviewed_at}{x.published_at && ` · نشر المصدر: ${x.published_at}`}</span><div className="actions"><a className="reference-link" href={x.url} target="_blank" rel="noopener noreferrer">قراءة المصدر الأصلي ↗</a>{can('ai.knowledge.manage') && (x.status === 'active' ? <Button disabled={busy} onClick={() => mutate(`/knowledge/external-references/${x.key}/disable`, {})}>إيقاف استخدامه</Button> : <Button disabled={busy} onClick={() => setReference(x)}>{x.status === 'disabled' ? 'إعادة الإضافة للمساعد' : 'إضافة للمساعد'}</Button>)}</div><span className="caption">{x.status === 'active' ? 'مضاف للمعرفة — يتاح بعد الفهرسة' : x.status === 'disabled' ? 'متوقف عن الاسترجاع' : 'للقراءة — لم يُضف للمساعد'}</span></Card>)}</div>{!filtered.length && <p className="muted">لا توجد مراجع مطابقة للبحث.</p>}</>}</QueryState>{error && <Notice intent="error">{error}</Notice>}
+        {reference && <FormDialog title="مراجعة المرجع قبل إضافته" description={`${reference.title}: سيضاف ملخص إرشادي إلى المساعد، ويبقى منفصلاً عن سياسة الشركة. يحتاج عامل فهرسة ومزود AI مهيّأ.`} fields={[{ name: 'review_note', label: 'سبب ملاءمة المرجع لنشاط شركتك', type: 'textarea', required: true, wide: true, maxLength: 1000 }, { name: 'acknowledge', label: 'أقرّ بأنه مرجع إرشادي وليس سياسة معتمدة للشركة', required: true, boolean: true, placeholder: 'اختر الإقرار', options: [{ value: 'true', label: 'قرأت المرجع وأوافق على إضافته كمرجع إرشادي' }] }]} save={(body, key) => api(`/knowledge/external-references/${reference.key}/activate`, { method: 'POST', data: body, key })} onClose={() => setReference(null)} onSaved={m => { setReference(null); q.refresh(); onChanged?.(); notify(m); }} />}
+    </SectionCard>;
+}
