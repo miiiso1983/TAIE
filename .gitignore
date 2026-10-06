@@ -31,6 +31,8 @@ Thumbs.db
 !.env.example
 *.sqlite*
 /storage/**
+!/storage/**/
+!/storage/**/.gitignore
 /bootstrap/cache/*.php
 *.pem
 *.key
