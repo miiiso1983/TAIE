@@ -457,3 +457,21 @@ test('coverage confirmation requires an explicit source match and preserves mino
     expect(write.data.acknowledge).toBe(true);
     expect(state.errors).toEqual([]);
 });
+
+
+test('bonus employee picker searches the server beyond the initial directory', async ({page}) => {
+    const {errors}=await fixture(page,{permissions:[...allPermissions,'hr.compensation.read','advisor.bonus.read','advisor.bonus.submit']});
+    const requests=[];
+    await page.route('**/api/hr/employees?**', async route=>{
+        const url=new URL(route.request().url());requests.push(url.searchParams.get('search'));
+        const found=url.searchParams.get('search')==='E101';
+        await route.fulfill({status:200,contentType:'application/json',body:JSON.stringify({data:found?[{uuid:ids.employee,employee_number:'E101',first_name:'موظف',last_name:'بعيد'}]:[],meta:{current_page:1,last_page:1}})});
+    });
+    await page.locator('.account-button').click();await page.getByRole('menuitem',{name:'السياسات والموافقات',exact:true}).click();
+    await page.getByRole('button',{name:'طلب مكافأة',exact:true}).click();
+    await page.getByRole('combobox',{name:'الموظف',exact:true}).fill('E101');
+    await page.getByRole('option',{name:'موظف بعيد · E101',exact:true}).click();
+    await expect(page.getByRole('combobox',{name:'الموظف',exact:true})).toHaveValue('موظف بعيد · E101');
+    expect(requests).toContain('E101');
+    expect(errors).toEqual([]);
+});

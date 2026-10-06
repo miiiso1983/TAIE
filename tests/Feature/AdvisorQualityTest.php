@@ -153,4 +153,21 @@ class AdvisorQualityTest extends TestCase
         $quality = $this->getJson($this->url())->assertOk()->assertJsonPath('data.quality.coverage.available', false)->json('data.quality');
         $this->confirmation($quality)->assertStatus(503);
     }
+
+    public function test_employee_search_finds_records_beyond_first_page_with_stable_pagination_and_tenant_scope(): void
+    {
+        [$tenant, $user] = $this->actor(null, ['hr.employee.read']);
+        for ($i = 1; $i <= 105; $i++) {
+            Employee::query()->create(['employee_number' => 'N'.$i, 'first_name' => 'أحمد', 'last_name' => 'علي', 'employment_status' => 'active']);
+        }
+        $first = $this->getJson('/api/hr/employees?per_page=100&page=1')->assertOk()->assertJsonPath('meta.total', 105)->json('data');
+        $second = $this->getJson('/api/hr/employees?per_page=100&page=2')->assertOk()->json('data');
+        $this->assertCount(100, $first);
+        $this->assertCount(5, $second);
+        $this->assertCount(105, array_unique(array_column([...$first, ...$second], 'uuid')));
+        $this->getJson('/api/hr/employees?search=N105')->assertOk()->assertJsonCount(1, 'data')->assertJsonPath('data.0.employee_number', 'N105');
+        $this->getJson('/api/hr/employees?search='.urlencode('أحمد علي').'&per_page=50')->assertOk()->assertJsonPath('meta.total', 105);
+        $this->actor(null, ['hr.employee.read']);
+        $this->getJson('/api/hr/employees?search=N105')->assertOk()->assertJsonCount(0, 'data');
+    }
 }

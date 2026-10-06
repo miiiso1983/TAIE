@@ -60,3 +60,11 @@ TEAMI_UI_START_SERVER=1 npm run test:ui
 The browser suite mocks API responses with fictitious records while exercising the real built frontend and Laravel shell. It does not require production accounts or API keys and does not contact an AI provider. `TEAMI_UI_URL`, `TEAMI_PHP_BINARY`, and `TEAMI_CHROMIUM_PATH` support alternate local test environments.
 
 Verification results are recorded in `docs/VERIFICATION-FLUENT-UI.md`. Screenshots in `docs/previews/` show fictitious test records.
+
+## بحث الموظف من الخادم — 2026-10-07
+
+اختيار الموظف لطلب المكافأة يستخدم بحثاً مؤجلاً 250ms على نقطة قراءة الموظفين الحالية مع صفحات من 50 خياراً، وزر تحميل المزيد وإعادة البحث عند الخطأ. يُلغي الطلبات القديمة ويحفظ هوية الموظف المختار عند تغيّر النتائج. لم يعد الاختيار مقصوراً على أول 100 موظف. عند غياب صلاحية قراءة الموظفين يبقى المسار الموجود لإدخال UUID ولا يمنح البحث صلاحية إضافية.
+
+بحث الموظفين يدعم كلمات الاسم الكامل بحيث تطابق جميع الكلمات أي حقول الاسم أو الرقم أو البريد، مع ترتيب ثابت بمعرّف السجل عند تساوي الأسماء. اختبر وجود 105 موظفين، وعدم تكرار الصفحات، والعثور على موظف خارج الصفحة الأولى، وعزل الشركات. المكوّن المحلي الموجود يبقى لكل القوائم الصغيرة؛ بقية علاقات البيانات الكبيرة لم تتحول جميعها إلى البحث من الخادم.
+
+التحقق: 97 اختبار Laravel / 745 تأكيداً، بناء Vite وPint وdiff ناجحة. سيناريو واجهة جديد موجود لاختيار نتيجة غير موجودة بالدليل الأولي؛ التنفيذ متعطل عند إطلاق Chrome بسبب MachPortRendezvous في بيئة العزل. تحذير حزمة Fluent الكبيرة باقٍ.

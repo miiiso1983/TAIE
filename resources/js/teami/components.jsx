@@ -11,7 +11,7 @@ import { api, requestKey } from './api';
 const searchKey = text => String(text).normalize('NFKD').replace(/[\u064B-\u065F\u0670\u0640]/g, '').replace(/[أإآ]/g, 'ا').replace(/ى/g, 'ي').toLocaleLowerCase().trim();
 const optionLabel = node => React.Children.toArray(node).map(x => React.isValidElement(x) ? optionLabel(x.props.children) : String(x)).join('');
 // Preserve canonical values while searching translated option labels.
-export function SearchableSelect({ children, value = '', onChange, required, disabled, name, ...props }) {
+export function SearchableSelect({ children, value = '', onChange, onSearch, remote = false, loading = false, required, disabled, name, ...props }) {
     const options = React.Children.toArray(children).filter(x => React.isValidElement(x) && x.type === 'option').map(x => ({ value: String(x.props.value ?? ''), label: optionLabel(x.props.children), disabled: x.props.disabled }));
     const selected = options.find(x => x.value === String(value));
     const [query, setQuery] = useState(selected?.label ?? ''), [searching, setSearching] = useState(false);
@@ -19,14 +19,58 @@ export function SearchableSelect({ children, value = '', onChange, required, dis
     const input = useRef(null);
     useEffect(() => { if (!searching) setQuery(selected?.label ?? ''); }, [value, selected?.label, searching]);
     useEffect(() => { input.current?.setCustomValidity(required && (!selected || selected.value === '' || searching) ? 'اختر قيمة من القائمة.' : ''); }, [required, selected?.value, searching]);
-    const filtered = searching ? options.filter(x => searchKey(x.label).includes(searchKey(query))) : options;
+    const filtered = searching && !remote ? options.filter(x => searchKey(x.label).includes(searchKey(query))) : options;
     return <Combobox {...props} open={open} onOpenChange={(_, data) => setOpen(data.open)} className={`searchable-select ${props.className ?? ''}`} value={query} selectedOptions={selected && selected.value !== '' ? [selected.value] : []} required={required} disabled={disabled} name={name} input={{ ref: input }} placeholder={options.find(x => x.value === '')?.label ?? 'ابحث واختر…'}
-        onChange={event => { setQuery(event.target.value); setSearching(true); setOpen(true); }}
+        onChange={event => { setQuery(event.target.value); setSearching(true); setOpen(true); onSearch?.(event.target.value); }}
         onOptionSelect={(_, data) => { if (data.optionValue === undefined) return; setOpen(false); setSearching(false); const next = options.find(x => x.value === data.optionValue); setQuery(next?.label ?? ''); onChange?.({ target: { value: data.optionValue ?? '', name } }); }}
         onBlur={() => { setOpen(false); setSearching(false); setQuery(selected?.label ?? ''); }}>
         {filtered.map(x => <Option key={x.value} value={x.value} text={x.label} data-option-value={x.value} disabled={x.disabled}>{x.label}</Option>)}
-        {!filtered.length && <Option disabled value="__no_results">لا توجد نتائج</Option>}
+        {loading && <Option disabled value="__loading">جارٍ البحث…</Option>}
+        {!filtered.some(option => option.value !== '') && !loading && <Option disabled value="__no_results">لا توجد نتائج</Option>}
     </Combobox>;
+}
+// Search tenant-scoped paginated endpoints without loading the complete directory.
+export function RemoteSearchableSelect({ source, value = '', onChange, ...props }) {
+    const [search, setSearch] = useState(''), [page, setPage] = useState(1), [retry, setRetry] = useState(0);
+    const [state, setState] = useState({ rows: [], loading: true, error: null, lastPage: 1 });
+    const [chosen, setChosen] = useState(null);
+    const sequence = useRef(0);
+    useEffect(() => {
+        const controller = new AbortController(), current = ++sequence.current;
+        setState(old => ({...old, rows: page === 1 ? [] : old.rows, loading: true, error: null}));
+        const timer = setTimeout(() => {
+            const separator = source.path.includes('?') ? '&' : '?';
+            api(`${source.path}${separator}${new URLSearchParams({search, page, per_page: 50})}`, {signal: controller.signal})
+                .then(response => {
+                    if (controller.signal.aborted || sequence.current !== current) return;
+                    const rows = response.data?.data ?? response.data ?? [];
+                    const lastPage = response.meta?.last_page ?? response.data?.last_page ?? 1;
+                    setState(old => ({rows: page === 1 ? rows : [...old.rows, ...rows], loading: false, error: null, lastPage}));
+                }).catch(error => {
+                    if (!controller.signal.aborted && sequence.current === current) setState(old => ({...old, loading: false, error}));
+                });
+        }, search ? 250 : 0);
+        return () => { clearTimeout(timer); controller.abort(); };
+    }, [source.path, search, page, retry]);
+    useEffect(() => {
+        const found = state.rows.find(row => row.uuid === value);
+        if (found && chosen?.uuid !== value) { setChosen(found); return; }
+        if (!value || chosen?.uuid === value || found) return;
+        const controller = new AbortController();
+        api(`${source.path.split('?')[0]}/${encodeURIComponent(value)}`, {signal: controller.signal}).then(response => {
+            if (!controller.signal.aborted) setChosen(response.data);
+        }).catch(() => {});
+        return () => controller.abort();
+    }, [value, source.path, chosen?.uuid, state.rows]);
+    const selected = state.rows.find(row => row.uuid === value) ?? (chosen?.uuid === value ? chosen : null);
+    const rows = selected && !state.rows.some(row => row.uuid === selected.uuid) ? [selected, ...state.rows] : state.rows;
+    return <div className="stack"><SearchableSelect {...props} remote loading={state.loading} value={value} onSearch={text => {sequence.current++;setState(old=>({...old,rows:[],loading:true,error:null}));setSearch(text);setPage(1);setRetry(x=>x+1);}} onChange={event => {
+        setChosen(rows.find(row => row.uuid === event.target.value) ?? null);
+        onChange?.(event);
+    }}><option value="">{source.placeholder ?? 'ابحث بالاسم أو الرقم…'}</option>{rows.map(row => <option key={row.uuid} value={row.uuid}>{source.label(row)}</option>)}</SearchableSelect>
+        {state.error && <><Notice intent="error">{state.error.message}</Notice><Button size="small" onClick={()=>setRetry(x=>x+1)}>إعادة البحث</Button></>}
+        {page < state.lastPage && <Button size="small" disabled={state.loading} onClick={()=>setPage(x=>x+1)}>تحميل خيارات إضافية</Button>}
+    </div>;
 }
 const Select = SearchableSelect;
 
@@ -112,7 +156,7 @@ export function FormDialog({ title, fields, initial = {}, save, onClose, onSaved
                     const choices = typeof f.options === 'function' ? f.options(values) : f.options;
                     if (f.type === 'permissions') return <fieldset key={f.name} className="permission-fieldset span-two"><legend>{f.label}</legend><div className="permission-options">{(choices ?? []).map(o => <Checkbox key={o.value} label={o.label} checked={(values[f.name] ?? []).includes(o.value)} disabled={busy} onChange={(_, d) => change(f, d.checked ? [...(values[f.name] ?? []), o.value] : (values[f.name] ?? []).filter(x => x !== o.value))} />)}</div></fieldset>;
                     return <Field key={f.name} label={f.label} required={f.required} hint={f.hint} className={f.wide ? 'span-two' : ''}>
-                        {f.type === 'permissions' ? <div className="permission-options">{(choices ?? []).map(o => <Checkbox key={o.value} label={o.label} checked={(values[f.name] ?? []).includes(o.value)} disabled={busy} onChange={(_, d) => change(f, d.checked ? [...(values[f.name] ?? []), o.value] : (values[f.name] ?? []).filter(x => x !== o.value))} />)}</div> : choices ? <Select {...common} onChange={e => change(f, e.target.value)}>{!f.required || f.placeholder ? <option value="">{f.placeholder ?? 'بدون تحديد'}</option> : null}{choices.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}</Select> : f.type === 'textarea' ? <Textarea {...common} maxLength={f.maxLength} resize="vertical" onChange={(_, d) => change(f, d.value)} /> : <Input {...common} type={f.type ?? 'text'} min={f.min} max={f.max} step={f.step} maxLength={f.maxLength} onChange={(_, d) => change(f, d.value)} />}
+                        {f.type === 'permissions' ? <div className="permission-options">{(choices ?? []).map(o => <Checkbox key={o.value} label={o.label} checked={(values[f.name] ?? []).includes(o.value)} disabled={busy} onChange={(_, d) => change(f, d.checked ? [...(values[f.name] ?? []), o.value] : (values[f.name] ?? []).filter(x => x !== o.value))} />)}</div> : f.remote ? <RemoteSearchableSelect {...common} source={f.remote} onChange={e => change(f, e.target.value)} /> : choices ? <Select {...common} onChange={e => change(f, e.target.value)}>{!f.required || f.placeholder ? <option value="">{f.placeholder ?? 'بدون تحديد'}</option> : null}{choices.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}</Select> : f.type === 'textarea' ? <Textarea {...common} maxLength={f.maxLength} resize="vertical" onChange={(_, d) => change(f, d.value)} /> : <Input {...common} type={f.type ?? 'text'} min={f.min} max={f.max} step={f.step} maxLength={f.maxLength} onChange={(_, d) => change(f, d.value)} />}
                     </Field>;
                 })}</div>{error && <div className="form-message"><Notice intent="error">{error}</Notice></div>}</DialogContent>
                 <DialogActions><Button disabled={busy} onClick={onClose}>إلغاء</Button><Button appearance="primary" type="submit" disabled={busy} icon={busy ? <Spinner size="tiny" /> : undefined}>{busy ? 'جارٍ الحفظ…' : 'حفظ'}</Button></DialogActions>
