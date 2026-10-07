@@ -27,6 +27,8 @@ class DatabaseSeeder extends Seeder
             'advisor.bonus.approve.stage2' => 'advisor',
             'advisor.bonus.approve.stage3' => 'advisor',
             'advisor.forecast.run' => 'advisor',
+            'advisor.rule.manage' => 'advisor',
+            'advisor.rule.approve' => 'advisor',
             'advisor.source.manage' => 'advisor',
             'advisor.decision.read' => 'advisor',
             'advisor.decision.manage' => 'advisor',

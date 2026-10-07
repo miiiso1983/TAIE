@@ -6,6 +6,7 @@ use App\Http\Controllers\Api\MembershipController;
 use App\Http\Controllers\Api\TenantFileController;
 use App\Models\Permission;
 use App\Modules\Advisor\Http\Controllers\BonusController;
+use App\Modules\Advisor\Http\Controllers\CompanyRuleController;
 use App\Modules\Advisor\Http\Controllers\DataQualityController;
 use App\Modules\Advisor\Http\Controllers\DecisionController;
 use App\Modules\Advisor\Http\Controllers\ImportController;
@@ -52,6 +53,14 @@ Route::middleware(['throttle:api', 'auth:sanctum', 'tenant.resolve', 'tenant.mem
         Route::patch('/connections/{uuid}/status', [IntegrationController::class, 'status'])->middleware(['permission:integration.manage', 'idempotency']);
         Route::get('/connections/{uuid}/batches', [IntegrationController::class, 'batches']);
         Route::post('/connections/{uuid}/preview', [IntegrationController::class, 'preview'])->middleware(['permission:integration.sync', 'permission:data.import.manage', 'idempotency']);
+    });
+
+    Route::prefix('advisor/company-rules')->middleware(['permission:data.sensitive.read'])->group(function () {
+        Route::get('/', [CompanyRuleController::class, 'index']);
+        Route::post('/', [CompanyRuleController::class, 'store'])->middleware(['permission:advisor.rule.manage', 'idempotency']);
+        Route::get('/{uuid}/simulations', [CompanyRuleController::class, 'simulations']);
+        Route::post('/{uuid}/simulate', [CompanyRuleController::class, 'simulate'])->middleware(['permission:advisor.rule.manage', 'idempotency']);
+        Route::post('/{uuid}/status', [CompanyRuleController::class, 'status'])->middleware(['permission:advisor.rule.approve', 'idempotency']);
     });
 
     Route::prefix('advisor/source-control')->middleware(['permission:advisor.sales.read', 'permission:data.sensitive.read'])->group(function () {
