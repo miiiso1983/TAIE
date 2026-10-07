@@ -9,6 +9,7 @@ use App\Models\Tenant;
 use App\Models\User;
 use App\Modules\Advisor\Models\AdvisorReport;
 use App\Modules\Advisor\Models\Decision;
+use App\Modules\Advisor\Models\ProductForecastRun;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
@@ -119,5 +120,44 @@ class DecisionCenterTest extends TestCase
         $migration = require database_path('migrations/2026_10_07_000003_create_advisor_decisions.php');
         $migration->down();
         $this->getJson('/api/advisor/decisions')->assertStatus(503);
+    }
+
+    private function forecast(User $u): string
+    {
+        return ProductForecastRun::query()->create(['uuid' => Str::uuid(), 'input_hash' => hash('sha256', Str::uuid()), 'fingerprint' => hash('sha256', 'forecast'), 'created_by' => $u->id, 'snapshot_encrypted' => ['status' => 'experimental', 'algorithm_version' => 'weekly_baselines_v1', 'product' => ['code' => 'P1', 'unit' => 'box'], 'area' => ['code' => 'A1'], 'scope' => ['from' => '2026-07-06', 'to' => '2026-09-27'], 'forecast' => ['quantity' => 12]]])->uuid;
+    }
+
+    public function test_forecast_decisions_keep_frozen_evidence_and_require_forecast_rights(): void
+    {
+        [$t,$u] = $this->actor([...self::RIGHTS, 'advisor.forecast.run']);
+        $p = $this->payload($u);
+        $f = $this->forecast($u);
+        unset($p['report_uuid']);
+        $id = $this->postDecision([...$p, 'forecast_uuid' => $f, 'unit' => 'quantity_milli'])->assertCreated()->assertJsonPath('data.details.forecast.forecast.quantity', 12)->json('data.uuid');
+        $this->getJson('/api/advisor/decisions')->assertOk()->assertJsonCount(1, 'data.data');
+        $this->move($id, 1, 'accepted')->assertOk();
+        $this->getJson('/api/advisor/decisions/'.$id)->assertOk()->assertJsonPath('data.details.forecast.uuid', $f);
+        [$b,$v] = $this->actor([...self::RIGHTS, 'advisor.forecast.run']);
+        $this->getJson('/api/advisor/decisions/'.$id)->assertNotFound();
+        $p['owner_id'] = $v->id;
+        $this->postDecision([...$p, 'forecast_uuid' => $f, 'unit' => 'quantity_milli'])->assertNotFound();
+        $this->sign($t, $u);
+        $role = Role::query()->where('tenant_id', $t->id)->first();
+        $role->permissions()->sync(Permission::query()->whereIn('name', self::RIGHTS)->pluck('id'));
+        $this->getJson('/api/advisor/decisions/'.$id)->assertForbidden();
+        $this->getJson('/api/advisor/decisions')->assertJsonCount(0, 'data.data');
+    }
+
+    public function test_forecast_decisions_require_exactly_one_evidence_and_quantity_units(): void
+    {
+        [$t,$u] = $this->actor([...self::RIGHTS, 'advisor.forecast.run']);
+        $p = $this->payload($u);
+        $f = $this->forecast($u);
+        $this->postDecision([...$p, 'forecast_uuid' => $f])->assertStatus(422);
+        unset($p['report_uuid']);
+        $this->postDecision([...$p, 'forecast_uuid' => $f])->assertStatus(422);
+        app(TenantContext::class)->setTenant($t);
+        ProductForecastRun::query()->where('uuid', $f)->firstOrFail()->update(['snapshot_encrypted' => ['status' => 'insufficient_data']]);
+        $this->postDecision([...$p, 'forecast_uuid' => $f, 'unit' => 'quantity_milli'])->assertStatus(422);
     }
 }
