@@ -107,7 +107,7 @@ class InventoryImportService
             }
         }
 
-return $errors;
+        return $errors;
     }
 
     public function write(array $rows, string $kind, string $source, int $batch): void
