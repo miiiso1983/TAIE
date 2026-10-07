@@ -36,7 +36,7 @@ class LaunchCheck extends Command
             DB::select('SELECT 1');
             $checks['Database reachable'] = true;
             $checks['Billing migrations applied'] = Schema::hasTable('billing_payments');
-            foreach (['advisor_coverage_confirmations', 'advisor_products', 'advisor_areas', 'advisor_invoice_lines', 'advisor_reconciliations', 'advisor_decisions', 'advisor_decision_events', 'advisor_inventory_observations', 'advisor_bonus_approvals'] as $table) {
+            foreach (['advisor_coverage_confirmations', 'advisor_products', 'advisor_areas', 'advisor_invoice_lines', 'advisor_reconciliations', 'advisor_decisions', 'advisor_decision_events', 'advisor_inventory_observations', 'advisor_bonus_approvals', 'advisor_product_forecast_runs'] as $table) {
                 $checks['Schema '.$table] = Schema::hasTable($table);
             }
             $checks['Reconciliation method installed'] = Schema::hasColumn('advisor_reconciliations', 'method');

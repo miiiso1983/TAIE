@@ -95,6 +95,8 @@ Route::middleware(['throttle:api', 'auth:sanctum', 'tenant.resolve', 'tenant.mem
         Route::post('/reconciliations/detailed', [DataQualityController::class, 'detailed'])->middleware(['permission:advisor.data.review', 'throttle:imports', 'idempotency']);
         Route::post('/reconciliations', [DataQualityController::class, 'store'])->middleware(['permission:advisor.data.review', 'idempotency']);
     });
+    Route::get('/advisor/product-forecasts', [ProductForecastController::class, 'index'])->middleware(['permission:advisor.forecast.run', 'permission:advisor.sales.read', 'permission:data.sensitive.read']);
+    Route::get('/advisor/product-forecasts/{uuid}', [ProductForecastController::class, 'show'])->middleware(['permission:advisor.forecast.run', 'permission:advisor.sales.read', 'permission:data.sensitive.read']);
     Route::post('/advisor/product-forecast', [ProductForecastController::class, 'analyze'])->middleware(['permission:advisor.forecast.run', 'permission:advisor.sales.read', 'permission:data.sensitive.read', 'idempotency', 'throttle:imports']);
     Route::get('/advisor/setup', [SetupController::class, 'index'])->middleware(['permission:advisor.sales.read', 'permission:data.sensitive.read']);
     Route::get('/advisor/sales/metrics', [SalesMetricsController::class, 'metrics'])->middleware(['permission:advisor.sales.read', 'permission:data.sensitive.read']);

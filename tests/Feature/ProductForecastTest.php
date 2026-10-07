@@ -162,4 +162,21 @@ class ProductForecastTest extends TestCase
         $this->actor(['advisor.sales.read', 'data.sensitive.read']);
         $this->analyze($p)->assertForbidden();
     }
+
+    public function test_forecast_archive_preserves_snapshot_and_deduplicates_exact_inputs(): void
+    {
+        $p = $this->series();
+        $first = $this->analyze($p)->assertOk()->json('data');
+        $this->analyze($p)->assertOk()->assertJsonPath('data.uuid', $first['uuid']);
+        $this->assertDatabaseCount('advisor_product_forecast_runs', 1);
+        $this->assertStringNotContainsString('Verified complete', DB::table('advisor_product_forecast_runs')->value('snapshot_encrypted'));
+        app(TenantContext::class)->setTenant($this->currentTenant);
+        InvoiceLine::query()->where('external_id', 'L11')->update(['quantity' => '100']);
+        $this->analyze($p)->assertOk();
+        $this->assertDatabaseCount('advisor_product_forecast_runs', 2);
+        $this->getJson('/api/advisor/product-forecasts/'.$first['uuid'])->assertOk()->assertJsonPath('data.forecast.quantity', 12);
+        $this->actor();
+        $this->getJson('/api/advisor/product-forecasts/'.$first['uuid'])->assertNotFound();
+        $this->getJson('/api/advisor/product-forecasts')->assertOk()->assertJsonPath('data.total', 0);
+    }
 }

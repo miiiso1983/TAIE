@@ -72,7 +72,7 @@ class ProductForecastService
         abort_if((clone $observations)->count() > 10000, 422, 'قسّم نطاق مدخلات المخزون.');
         $inputs = $observations->orderBy('id')->get();
         $stockouts = $inputs->where('kind', 'stockouts')->filter(fn ($x) => $x->end_date->toDateString() >= $d['from']);
-        $fingerprint = hash('sha256', json_encode([$d['source_system'], $product->uuid, $area->uuid, $cohort->toArray(), $allLines->toArray(), $returns->toArray(), $returnLines->toArray(), $inputs->toArray()], JSON_THROW_ON_ERROR));
+        $fingerprint = hash('sha256', json_encode([$d['from'], $d['to'], $d['source_system'], $product->uuid, $area->uuid, $cohort->toArray(), $allLines->toArray(), $returns->toArray(), $returnLines->toArray(), $inputs->toArray()], JSON_THROW_ON_ERROR));
         $warnings = ['التوقع تجريبي لكمية البيع قبل المرتجعات في الأسبوع التالي، ولا يمثل الطلب غير الملبى أو وعداً بالدقة.', 'توزع المرتجعات وصفياً على أسبوع الفاتورة الأصلية حتى نهاية الفترة؛ لا تدخل صافي الكميات أو المرتجعات المتأخرة في تدريب التوقع.', 'اعتبار الأسبوع بلا مبيعات صفراً يعتمد على إقرار التغطية البشرية، ولا يمكن إثباته من غياب السجلات.', 'نطاق الخطأ وصفي من أخطاء الاختبار الزمني ولا يحمل احتمال تغطية إحصائياً معتمداً.', 'الاختبار بأثر رجعي حسب تاريخ الفاتورة؛ قد تشمل البيانات تصحيحات واستيرادات لم تكن متاحة وقتها. يلزم قبول حي لإثبات الأداء المستقبلي.', 'لا تستخدم التكاليف أو السكان كمعامل سببي؛ لا يجري خلط العملات أو تقدير الأرباح.'];
         if ($stockouts->isNotEmpty()) {
             $warnings[] = 'توجد انقطاعات مسجلة؛ الكميات المباعة قد تقل عن الطلب. لم تُقدّر المبيعات المفقودة.';
