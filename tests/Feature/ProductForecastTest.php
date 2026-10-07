@@ -191,4 +191,16 @@ class ProductForecastTest extends TestCase
         SourceAuthority::query()->create(['uuid' => Str::uuid(), 'kind' => 'invoices', 'source_system' => 'different', 'version' => 2, 'reviewed_by' => $u->id, 'review_note_encrypted' => 'New verified source of record']);
         $this->analyze($p)->assertStatus(422);
     }
+
+    public function test_holdout_changes_cannot_change_model_selection_and_are_reported_separately(): void
+    {
+        $p = $this->series();
+        $a = $this->analyze($p)->assertOk()->assertJsonPath('data.backtest.independent_holdout', true)->assertJsonPath('data.backtest.holdout_weeks', 4)->assertJsonPath('data.backtest.selection_origins', 2)->json('data');
+        app(TenantContext::class)->setTenant($this->currentTenant);
+        InvoiceLine::query()->whereIn('external_id', ['L8', 'L9', 'L10', 'L11'])->update(['quantity' => '100']);
+        $b = $this->analyze($p)->assertOk()->json('data');
+        $this->assertSame($a['forecast']['model'], $b['forecast']['model']);
+        $this->assertSame($a['backtest']['mae'], $b['backtest']['mae']);
+        $this->assertNotSame($a['backtest']['holdout_mae'], $b['backtest']['holdout_mae']);
+    }
 }
