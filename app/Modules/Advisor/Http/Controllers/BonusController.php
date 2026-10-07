@@ -27,9 +27,16 @@ class BonusController extends Controller
         Tenant::query()->whereKey(app(TenantContext::class)->getTenantId())->lockForUpdate()->firstOrFail();
     }
 
-    public function policies()
+    public function policies(Request $r)
     {
-        return response()->json(['data' => BonusPolicy::query()->latest('id')->paginate(20)]);
+        $d = $r->validate(['search' => ['sometimes', 'string', 'max:120'], 'per_page' => ['sometimes', 'integer', 'min:1', 'max:50']]);
+
+        return response()->json(['data' => BonusPolicy::query()->when($d['search'] ?? null, fn ($q, $s) => $q->where('name', 'like', '%'.$s.'%'))->latest('id')->paginate((int) ($d['per_page'] ?? 20))]);
+    }
+
+    public function policy(string $uuid)
+    {
+        return response()->json(['data' => BonusPolicy::query()->where('uuid', $uuid)->firstOrFail()]);
     }
 
     public function createPolicy(Request $r, AuditTrailService $audit)

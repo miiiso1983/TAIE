@@ -12,6 +12,7 @@ use App\Modules\Advisor\Http\Controllers\ImportController;
 use App\Modules\Advisor\Http\Controllers\ProductForecastController;
 use App\Modules\Advisor\Http\Controllers\ReportController;
 use App\Modules\Advisor\Http\Controllers\SalesMetricsController;
+use App\Modules\Advisor\Http\Controllers\SetupController;
 use App\Modules\AI\Http\Controllers\AskController;
 use App\Modules\AI\Http\Controllers\ConversationController;
 use App\Modules\AI\Http\Controllers\ExternalReferenceController;
@@ -73,6 +74,7 @@ Route::middleware(['throttle:api', 'auth:sanctum', 'tenant.resolve', 'tenant.mem
 
     Route::prefix('advisor')->middleware(['permission:advisor.bonus.read', 'permission:data.sensitive.read', 'permission:hr.compensation.read'])->group(function () {
         Route::get('/bonus-policies', [BonusController::class, 'policies']);
+        Route::get('/bonus-policies/{uuid}', [BonusController::class, 'policy']);
         Route::post('/bonus-policies', [BonusController::class, 'createPolicy'])->middleware(['permission:advisor.policy.manage', 'idempotency']);
         Route::get('/bonus-requests', [BonusController::class, 'index']);
         Route::get('/bonus-requests/{uuid}', [BonusController::class, 'show']);
@@ -94,6 +96,7 @@ Route::middleware(['throttle:api', 'auth:sanctum', 'tenant.resolve', 'tenant.mem
         Route::post('/reconciliations', [DataQualityController::class, 'store'])->middleware(['permission:advisor.data.review', 'idempotency']);
     });
     Route::post('/advisor/product-forecast', [ProductForecastController::class, 'analyze'])->middleware(['permission:advisor.forecast.run', 'permission:advisor.sales.read', 'permission:data.sensitive.read', 'idempotency', 'throttle:imports']);
+    Route::get('/advisor/setup', [SetupController::class, 'index'])->middleware(['permission:advisor.sales.read', 'permission:data.sensitive.read']);
     Route::get('/advisor/sales/metrics', [SalesMetricsController::class, 'metrics'])->middleware(['permission:advisor.sales.read', 'permission:data.sensitive.read']);
     Route::get('/advisor/sales/invoices', [SalesMetricsController::class, 'invoices'])->middleware(['permission:advisor.sales.read', 'permission:data.sensitive.read']);
     Route::prefix('advisor/imports')->middleware(['permission:data.import.manage', 'permission:data.sensitive.read'])->group(function () {

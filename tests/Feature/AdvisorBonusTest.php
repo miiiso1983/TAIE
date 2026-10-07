@@ -7,6 +7,7 @@ use App\Models\Permission;
 use App\Models\Role;
 use App\Models\Tenant;
 use App\Models\User;
+use App\Modules\Advisor\Models\BonusPolicy;
 use App\Modules\Advisor\Models\ImportBatch;
 use App\Modules\Advisor\Models\SalesInvoice;
 use App\Modules\Advisor\Models\SalesReceipt;
@@ -315,5 +316,20 @@ class AdvisorBonusTest extends TestCase
         $this->stage($id, 2, 'reject')->assertOk()->assertJsonPath('data.status', 'rejected');
         $this->stage($id, 2)->assertConflict();
         $this->assertDatabaseCount('hr_payroll_runs', 0);
+    }
+
+    public function test_policy_search_reaches_older_versions_and_is_tenant_scoped(): void
+    {
+        [$t,$u] = $this->actor();
+        $id = $this->policy('advisory', ['name' => 'Find older policy']);
+        $this->sign($t, $u);
+        for ($i = 0; $i < 55; $i++) {
+            BonusPolicy::query()->create(['uuid' => Str::uuid(), 'name' => 'Other '.$i, 'version' => 1, 'valid_from' => '2026-01-01', 'valid_to' => '2026-12-31', 'currency' => 'USD', 'mode' => 'advisory', 'rules' => [], 'created_by' => $u->id]);
+        }
+        $this->getJson('/api/advisor/bonus-policies?search=older&per_page=50')->assertOk()->assertJsonPath('data.data.0.uuid', $id)->assertJsonPath('data.total', 1);
+        $this->getJson('/api/advisor/bonus-policies/'.$id)->assertOk();
+        $this->actor();
+        $this->getJson('/api/advisor/bonus-policies/'.$id)->assertNotFound();
+        $this->getJson('/api/advisor/bonus-policies?search=older')->assertOk()->assertJsonPath('data.total', 0);
     }
 }

@@ -36,6 +36,14 @@ class LaunchCheck extends Command
             DB::select('SELECT 1');
             $checks['Database reachable'] = true;
             $checks['Billing migrations applied'] = Schema::hasTable('billing_payments');
+            foreach (['advisor_coverage_confirmations', 'advisor_products', 'advisor_areas', 'advisor_invoice_lines', 'advisor_reconciliations', 'advisor_decisions', 'advisor_decision_events', 'advisor_inventory_observations', 'advisor_bonus_approvals'] as $table) {
+                $checks['Schema '.$table] = Schema::hasTable($table);
+            }
+            $checks['Reconciliation method installed'] = Schema::hasColumn('advisor_reconciliations', 'method');
+            $checks['Invoice area installed'] = Schema::hasColumn('advisor_sales_invoices', 'area_id');
+            foreach (['advisor.decision.read', 'advisor.decision.manage', 'advisor.forecast.run', 'advisor.bonus.approve.stage2', 'advisor.bonus.approve.stage3', 'advisor.data.review', 'data.catalog.import'] as $permission) {
+                $checks['Permission catalog '.$permission] = DB::table('permissions')->where('name', $permission)->where('guard_name', 'api')->exists();
+            }
             $checks['Platform privileges removed from tenant owners'] = ! DB::table('permission_role')->join('permissions', 'permissions.id', '=', 'permission_role.permission_id')->join('roles', 'roles.id', '=', 'permission_role.role_id')->where('roles.name', 'Tenant Owner')->where('permissions.name', 'like', 'platform.%')->exists();
         } catch (Throwable) {
             $checks['Database reachable'] = false;

@@ -146,4 +146,15 @@ class InventoryInputsTest extends TestCase
         $this->actor(['advisor.sales.read']);
         $this->getJson('/api/advisor/data/geography')->assertForbidden();
     }
+
+    public function test_setup_counts_are_isolated_and_do_not_claim_data_coverage(): void
+    {
+        $this->setupCatalog();
+        $response = $this->getJson('/api/advisor/setup')->assertOk()->json('data');
+        $this->assertSame('records_present', collect($response['steps'])->firstWhere('key', 'products')['status']);
+        $this->assertSame('no_records', collect($response['steps'])->firstWhere('key', 'invoices')['status']);
+        $this->actor();
+        $response = $this->getJson('/api/advisor/setup')->assertOk()->json('data');
+        $this->assertSame(0, collect($response['steps'])->firstWhere('key', 'products')['count']);
+    }
 }
