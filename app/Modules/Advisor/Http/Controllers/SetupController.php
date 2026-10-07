@@ -6,12 +6,14 @@ use App\Core\Tenancy\TenantContext;
 use App\Http\Controllers\Controller;
 use App\Modules\Advisor\Models\AdvisorReport;
 use App\Modules\Advisor\Models\Area;
+use App\Modules\Advisor\Models\CompanyRule;
 use App\Modules\Advisor\Models\Decision;
 use App\Modules\Advisor\Models\InventoryObservation;
 use App\Modules\Advisor\Models\InvoiceLine;
 use App\Modules\Advisor\Models\Product;
 use App\Modules\Advisor\Models\Reconciliation;
 use App\Modules\Advisor\Models\SalesInvoice;
+use App\Modules\Advisor\Models\SourceAuthority;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Schema;
 
@@ -34,7 +36,7 @@ class SetupController extends Controller
         }
         $tenant = app(TenantContext::class)->getTenantId();
         $rights = fn ($p) => $r->user()->hasTenantPermission($tenant, $p);
-        $optional = [['reports', 'تقارير الفترة', AdvisorReport::class, 'advisor_reports', 'reports', 'advisor.report.read'], ['decisions', 'متابعة قرارات المدير', Decision::class, 'advisor_decisions', 'decisions', 'advisor.decision.read']];
+        $optional = [['reports', 'تقارير الفترة', AdvisorReport::class, 'advisor_reports', 'reports', 'advisor.report.read'], ['decisions', 'متابعة قرارات المدير', Decision::class, 'advisor_decisions', 'decisions', 'advisor.decision.read'], ['sources', 'مراجعة مصادر الحقيقة والهويات', SourceAuthority::class, 'advisor_source_authorities', 'sources', 'advisor.source.manage'], ['rules', 'محاكاة السياسات واعتمادها', CompanyRule::class, 'advisor_company_rules', 'rules', 'advisor.rule.manage']];
         foreach ($optional as [$key,$label,$model,$table,$page,$permission]) {
             if (! $rights($permission)) {
                 continue;
