@@ -39,10 +39,10 @@ class RagAnswerService
         $history = $conversation->messages()->orderByDesc('id')->limit(8)->get()->reverse()
             ->map(fn (AIMessage $message) => ['role' => $message->role, 'content' => mb_substr($message->content_encrypted, 0, 3000)])
             ->values()->all();
-        $queryVector = $this->embeddings->embed($question);
+
         $allowedSources = $agent?->allowed_source_uuids;
         $canReadSensitive = $this->authorization->allows($user, 'ai.knowledge.sensitive.read', ['sensitivity' => 'restricted', 'sensitive_permission' => 'ai.knowledge.sensitive.read']);
-        $candidates = KnowledgeChunk::query()->where('embedding_model', $this->embeddings->model())
+        $candidateQuery = KnowledgeChunk::query()->where('embedding_model', $this->embeddings->model())
             ->whereHas('document', function ($query) use ($allowedSources, $canReadSensitive) {
                 $query->where('status', 'indexed')->whereHas('source', function ($sourceQuery) use ($allowedSources, $canReadSensitive) {
                     $sourceQuery->where('status', 'active');
@@ -53,21 +53,41 @@ class RagAnswerService
                         $sourceQuery->whereIn('uuid', $allowedSources);
                     }
                 });
-            })->with(['document.source'])->limit(5000)->get();
-        // Retain archived summaries, but retrieve only the reviewed current revision.
-        $candidates = $candidates->filter(function ($chunk) {
+            })->with(['document.source']);
+        // Bound work explicitly; never answer from a silently truncated corpus.
+        $maxScan = max(1, min(100000, (int) config('teami_ai.maximum_retrieval_scan', 50000)));
+        $maxId = (clone $candidateQuery)->max('id');
+        $candidateQuery->where('id', '<=', $maxId ?? 0);
+        abort_if((clone $candidateQuery)->count() > $maxScan, 422, 'مصادر المعرفة تتجاوز حد البحث الحالي؛ حدد مصادر الوكيل أو جهّز فهرساً متجهاً قبل الإجابة.');
+        $queryVector = $this->embeddings->embed($question);
+        abort_unless($queryVector !== [] && collect($queryVector)->every(fn ($v) => is_numeric($v) && is_finite((float) $v)) && collect($queryVector)->contains(fn ($v) => (float) $v !== 0.0), 503, 'Embedding provider returned an invalid query vector.');
+        $limit = max(1, min(20, (int) config('teami_ai.retrieval_limit', 6)));
+        $threshold = max(0.0, min(1.0, (float) config('teami_ai.minimum_similarity', 0.1)));
+        $top = [];
+        foreach ($candidateQuery->lazyById(250) as $chunk) {
             $source = $chunk->document->source;
-            if ($source->origin !== 'external_reference') {
-                return true;
-            }
             $metadata = $source->external_metadata ?? [];
+            if ($source->origin === 'external_reference' && (app(ExternalReferenceCatalog::class)->expired($metadata) || (isset($metadata['current_document_uuid']) && $metadata['current_document_uuid'] !== $chunk->document->uuid))) {
+                continue;
+            }
+            $vector = $chunk->embedding;
+            if (! is_array($vector) || count($vector) !== count($queryVector) || ! collect($vector)->every(fn ($v) => is_numeric($v) && is_finite((float) $v))) {
+                continue;
+            }
+            $score = $this->cosine($queryVector, $vector);
+            if (! is_finite($score) || $score < $threshold) {
+                continue;
+            }
+            $top[] = ['chunk' => $chunk, 'score' => $score];
+            usort($top, fn ($a, $b) => ($b['score'] <=> $a['score']) ?: ($a['chunk']->id <=> $b['chunk']->id));
+            if (count($top) > $limit) {
+                array_pop($top);
+            }
+        }
+        $ranked = collect($top);
 
-            return ! app(ExternalReferenceCatalog::class)->expired($metadata)
-                && (! isset($metadata['current_document_uuid']) || $metadata['current_document_uuid'] === $chunk->document->uuid);
-        });
-        $ranked = $candidates->map(fn ($chunk) => ['chunk' => $chunk, 'score' => $this->cosine($queryVector, $chunk->embedding)])
-            ->filter(fn ($item) => $item['score'] >= (float) config('teami_ai.minimum_similarity', 0.1))
-            ->sortByDesc('score')->take((int) config('teami_ai.retrieval_limit', 6))->values();
+        $contextChars = $ranked->sum(fn ($item) => mb_strlen($item['chunk']->content_encrypted));
+        abort_if($contextChars > max(1000, min(100000, (int) config('teami_ai.maximum_context_chars', 24000))), 422, 'مقاطع المعرفة تتجاوز ميزانية السياق؛ خفّض عدد المقاطع أو حجمها قبل الإجابة.');
 
         AIMessage::query()->create(['tenant_id' => $this->context->getTenantId(), 'conversation_id' => $conversation->id, 'role' => 'user', 'content_encrypted' => $question]);
         $citations = $ranked->map(fn ($item, $index) => [

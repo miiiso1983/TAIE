@@ -14,10 +14,12 @@ use App\Modules\AI\Models\KnowledgeChunk;
 use App\Modules\AI\Models\KnowledgeSource;
 use App\Modules\AI\Services\RagAnswerService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Crypt;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Queue;
 use Illuminate\Support\Str;
 use Illuminate\Testing\TestResponse;
+use Symfony\Component\HttpKernel\Exception\HttpException;
 use Tests\TestCase;
 
 class ExternalReferenceTest extends TestCase
@@ -172,5 +174,90 @@ class ExternalReferenceTest extends TestCase
         $source->update(['external_metadata' => [...$source->external_metadata, 'review_due_at' => now()->subDay()->toDateString()]]);
         $this->assertSame([], $service->answer($user, 'مراجعة الفريق')['citations']);
         $this->assertDatabaseCount('knowledge_documents', 2);
+    }
+
+    public function test_retrieval_finds_best_chunk_beyond_old_5000_limit_and_refuses_partial_corpus(): void
+    {
+        [$tenant,$user] = $this->actor();
+        $this->activate();
+        app(TenantContext::class)->setTenant($tenant);
+        $source = KnowledgeSource::query()->firstOrFail();
+        $doc = $source->documents()->firstOrFail();
+        $doc->update(['status' => 'indexed']);
+        $rows = [];
+        for ($i = 0; $i < 5001; $i++) {
+            $rows[] = ['tenant_id' => $tenant->id, 'document_id' => $doc->id, 'chunk_index' => $i, 'content_encrypted' => Crypt::encryptString('Chunk '.$i), 'embedding' => json_encode($i === 5000 ? [1, 0] : [0, 1]), 'embedding_model' => 'scale-test', 'created_at' => now(), 'updated_at' => now()];
+        }
+        foreach (array_chunk($rows, 250) as $batch) {
+            DB::table('knowledge_chunks')->insert($batch);
+        }
+        $this->mock(EmbeddingProviderInterface::class, function ($m) {
+            $m->shouldReceive('embed')->once()->andReturn([1, 0]);
+            $m->shouldReceive('model')->twice()->andReturn('scale-test');
+        });
+        $this->mock(LLMProviderInterface::class, function ($m) {
+            $m->shouldReceive('complete')->once()->andReturn(['content' => 'Last chunk [1]', 'usage' => []]);
+        });
+        $service = app(RagAnswerService::class);
+        $answer = $service->answer($user, 'Find the relevant late chunk');
+        $this->assertCount(1, $answer['citations']);
+        $this->assertSame(5000, $answer['citations'][0]['chunk_index']);
+        config(['teami_ai.maximum_retrieval_scan' => 5000]);
+        try {
+            $service->answer($user, 'Never answer a partial corpus');
+            $this->fail('Expected corpus limit refusal');
+        } catch (HttpException $e) {
+            $this->assertSame(422, $e->getStatusCode());
+        }
+    }
+
+    public function test_embedding_budget_stops_before_provider_requests(): void
+    {
+        [$t] = $this->actor();
+        $this->activate();
+        app(TenantContext::class)->setTenant($t);
+        $source = KnowledgeSource::query()->firstOrFail();
+        $doc = $source->documents()->firstOrFail();
+        $doc->update(['body_encrypted' => str_repeat('a', 2000)]);
+        config(['teami_ai.chunk_size' => 300, 'teami_ai.chunk_overlap' => 299, 'teami_ai.maximum_embedding_chunks' => 5]);
+        $this->mock(EmbeddingProviderInterface::class, fn ($m) => $m->shouldNotReceive('embed'));
+        try {
+            (new IndexKnowledgeDocument($t->id, $doc->id))->handle();
+            $this->fail('Expected embedding budget refusal');
+        } catch (\RuntimeException $e) {
+            $this->assertStringContainsString('embedding budget', $e->getMessage());
+        }
+        app(TenantContext::class)->setTenant($t);
+        $this->assertSame('failed', $doc->fresh()->status);
+        $this->assertDatabaseCount('knowledge_chunks', 0);
+    }
+
+    public function test_malformed_vectors_fail_closed_and_ties_are_stable(): void
+    {
+        [$t,$u] = $this->actor();
+        $this->activate();
+        app(TenantContext::class)->setTenant($t);
+        $doc = KnowledgeSource::query()->firstOrFail()->documents()->firstOrFail();
+        $doc->update(['status' => 'indexed']);
+        foreach ([[1, 0], [1, 0], ['bad', 0], [1, 0, 0]] as $i => $vector) {
+            KnowledgeChunk::query()->create(['document_id' => $doc->id, 'chunk_index' => $i, 'content_encrypted' => 'Evidence '.$i, 'embedding' => $vector, 'embedding_model' => 'vector-test']);
+        }
+        config(['teami_ai.retrieval_limit' => 1]);
+        $this->mock(EmbeddingProviderInterface::class, function ($m) {
+            $m->shouldReceive('model')->twice()->andReturn('vector-test');
+            $m->shouldReceive('embed')->twice()->andReturn([1, 0], []);
+        });
+        $this->mock(LLMProviderInterface::class, function ($m) {
+            $m->shouldReceive('complete')->once()->andReturn(['content' => 'Evidence [1]', 'usage' => []]);
+        });
+        $service = app(RagAnswerService::class);
+        $answer = $service->answer($u, 'Stable evidence');
+        $this->assertSame(0, $answer['citations'][0]['chunk_index']);
+        try {
+            $service->answer($u, 'Invalid query');
+            $this->fail('Expected invalid vector refusal');
+        } catch (HttpException $e) {
+            $this->assertSame(503, $e->getStatusCode());
+        }
     }
 }

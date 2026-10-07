@@ -24,11 +24,15 @@ class IndexKnowledgeDocument extends TenantAwareJob
         $document->update(['status' => 'indexing', 'processing_error' => null]);
         try {
             $body = trim($document->body_encrypted);
-            $size = max(300, (int) config('teami_ai.chunk_size', 1200));
+            $size = max(300, min(6000, (int) config('teami_ai.chunk_size', 1200)));
             $overlap = min(max(0, (int) config('teami_ai.chunk_overlap', 150)), $size - 1);
             $chunks = [];
             $offset = 0;
             $length = mb_strlen($body);
+            $maxChunks = max(1, min(2000, (int) config('teami_ai.maximum_embedding_chunks', 1000)));
+            if ($length > (int) config('teami_ai.max_document_chars', 500000) || (int) ceil($length / ($size - $overlap)) > $maxChunks) {
+                throw new \RuntimeException('Document exceeds the configured embedding budget; reduce overlap or split the document.');
+            }
             while ($offset < $length) {
                 $part = trim(mb_substr($body, $offset, $size));
                 if ($part !== '') {
@@ -43,7 +47,7 @@ class IndexKnowledgeDocument extends TenantAwareJob
             $vectors = array_map(fn (string $chunk) => $provider->embed($chunk), $chunks);
             $dimensions = count($vectors[0]);
             foreach ($vectors as $vector) {
-                if (count($vector) !== $dimensions) {
+                if ($dimensions === 0 || count($vector) !== $dimensions || ! collect($vector)->every(fn ($v) => is_numeric($v) && is_finite((float) $v)) || ! collect($vector)->contains(fn ($v) => (float) $v !== 0.0)) {
                     throw new \RuntimeException('Embedding dimensions changed within one document.');
                 }
             }
