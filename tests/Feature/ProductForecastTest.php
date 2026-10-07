@@ -10,6 +10,7 @@ use App\Models\User;
 use App\Modules\Advisor\Models\Area;
 use App\Modules\Advisor\Models\InvoiceLine;
 use App\Modules\Advisor\Models\Product;
+use App\Modules\Advisor\Models\SourceAuthority;
 use App\Modules\HR\Models\Employee;
 use App\Modules\Sales\Models\Customer;
 use Carbon\CarbonImmutable;
@@ -178,5 +179,16 @@ class ProductForecastTest extends TestCase
         $this->actor();
         $this->getJson('/api/advisor/product-forecasts/'.$first['uuid'])->assertNotFound();
         $this->getJson('/api/advisor/product-forecasts')->assertOk()->assertJsonPath('data.total', 0);
+    }
+
+    public function test_forecasts_honor_registered_invoice_authority_and_retain_revision(): void
+    {
+        $p = $this->series();
+        $u = User::query()->first();
+        $a = SourceAuthority::query()->create(['uuid' => Str::uuid(), 'kind' => 'invoices', 'source_system' => 'primary', 'version' => 1, 'reviewed_by' => $u->id, 'review_note_encrypted' => 'Verified source of record']);
+        $this->analyze($p)->assertOk()->assertJsonPath('data.source_authority.uuid', (string) $a->uuid);
+        app(TenantContext::class)->setTenant($this->currentTenant);
+        SourceAuthority::query()->create(['uuid' => Str::uuid(), 'kind' => 'invoices', 'source_system' => 'different', 'version' => 2, 'reviewed_by' => $u->id, 'review_note_encrypted' => 'New verified source of record']);
+        $this->analyze($p)->assertStatus(422);
     }
 }

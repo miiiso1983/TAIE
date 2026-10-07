@@ -8,13 +8,17 @@ use App\Modules\Advisor\Models\InvoiceLine;
 use App\Modules\Advisor\Models\Product;
 use App\Modules\Advisor\Models\SalesInvoice;
 use App\Modules\Advisor\Models\SalesReturn;
+use App\Modules\Advisor\Models\SourceAuthority;
 use Carbon\CarbonImmutable;
+use Illuminate\Support\Facades\Schema;
 
 class ProductForecastService
 {
     public function analyze(array $d): array
     {
         abort_unless(InventoryImportService::available(), 503, 'Forecast inputs require the pending schema upgrade.');
+        $authority = Schema::hasTable('advisor_source_authorities') ? SourceAuthority::query()->where('kind', 'invoices')->latest('version')->first() : null;
+        abort_if($authority && $authority->source_system !== $d['source_system'], 422, 'مصدر التوقع يخالف مصدر الحقيقة الحالي للفواتير.');
         $product = Product::query()->where('uuid', $d['product_uuid'])->firstOrFail();
         $area = Area::query()->where('uuid', $d['area_uuid'])->firstOrFail();
         $from = CarbonImmutable::parse($d['from']);
@@ -72,7 +76,7 @@ class ProductForecastService
         abort_if((clone $observations)->count() > 10000, 422, 'قسّم نطاق مدخلات المخزون.');
         $inputs = $observations->orderBy('id')->get();
         $stockouts = $inputs->where('kind', 'stockouts')->filter(fn ($x) => $x->end_date->toDateString() >= $d['from']);
-        $fingerprint = hash('sha256', json_encode([$d['from'], $d['to'], $d['source_system'], $product->uuid, $area->uuid, $cohort->toArray(), $allLines->toArray(), $returns->toArray(), $returnLines->toArray(), $inputs->toArray()], JSON_THROW_ON_ERROR));
+        $fingerprint = hash('sha256', json_encode([$authority?->uuid, $d['from'], $d['to'], $d['source_system'], $product->uuid, $area->uuid, $cohort->toArray(), $allLines->toArray(), $returns->toArray(), $returnLines->toArray(), $inputs->toArray()], JSON_THROW_ON_ERROR));
         $warnings = ['التوقع تجريبي لكمية البيع قبل المرتجعات في الأسبوع التالي، ولا يمثل الطلب غير الملبى أو وعداً بالدقة.', 'توزع المرتجعات وصفياً على أسبوع الفاتورة الأصلية حتى نهاية الفترة؛ لا تدخل صافي الكميات أو المرتجعات المتأخرة في تدريب التوقع.', 'اعتبار الأسبوع بلا مبيعات صفراً يعتمد على إقرار التغطية البشرية، ولا يمكن إثباته من غياب السجلات.', 'نطاق الخطأ وصفي من أخطاء الاختبار الزمني ولا يحمل احتمال تغطية إحصائياً معتمداً.', 'الاختبار بأثر رجعي حسب تاريخ الفاتورة؛ قد تشمل البيانات تصحيحات واستيرادات لم تكن متاحة وقتها. يلزم قبول حي لإثبات الأداء المستقبلي.', 'لا تستخدم التكاليف أو السكان كمعامل سببي؛ لا يجري خلط العملات أو تقدير الأرباح.'];
         if ($stockouts->isNotEmpty()) {
             $warnings[] = 'توجد انقطاعات مسجلة؛ الكميات المباعة قد تقل عن الطلب. لم تُقدّر المبيعات المفقودة.';
@@ -81,7 +85,7 @@ class ProductForecastService
             $warnings[] = 'لا توجد أرصدة مخزون مؤرخة لهذا النطاق.';
         }
         $ready = $missing === 0 && $missingReturns === 0 && $allLines->where('product_id', $product->id)->isNotEmpty();
-        $result = ['algorithm_version' => 'weekly_baselines_v1', 'product' => ['uuid' => $product->uuid, 'code' => $product->code, 'unit' => $product->base_unit], 'area' => ['uuid' => $area->uuid, 'code' => $area->code], 'scope' => array_intersect_key($d, array_flip(['source_system', 'from', 'to'])), 'fingerprint' => $fingerprint, 'series' => array_values($weeks), 'readiness' => ['complete_invoice_count' => $count - $missing, 'incomplete_invoice_count' => $missing, 'incomplete_return_count' => $missingReturns, 'stockout_count' => $stockouts->count(), 'coverage_note' => $d['coverage_note'], 'coverage_acknowledged_by_human' => true], 'status' => $ready ? 'experimental' : 'insufficient_data', 'warnings' => $warnings, 'forecast' => null];
+        $result = ['source_authority' => $authority ? ['uuid' => $authority->uuid, 'version' => $authority->version, 'source_system' => $authority->source_system] : null, 'algorithm_version' => 'weekly_baselines_v1', 'product' => ['uuid' => $product->uuid, 'code' => $product->code, 'unit' => $product->base_unit], 'area' => ['uuid' => $area->uuid, 'code' => $area->code], 'scope' => array_intersect_key($d, array_flip(['source_system', 'from', 'to'])), 'fingerprint' => $fingerprint, 'series' => array_values($weeks), 'readiness' => ['complete_invoice_count' => $count - $missing, 'incomplete_invoice_count' => $missing, 'incomplete_return_count' => $missingReturns, 'stockout_count' => $stockouts->count(), 'coverage_note' => $d['coverage_note'], 'coverage_acknowledged_by_human' => true], 'status' => $ready ? 'experimental' : 'insufficient_data', 'warnings' => $warnings, 'forecast' => null];
         if (! $ready) {
             return $result;
         }

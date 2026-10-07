@@ -13,6 +13,7 @@ use App\Modules\Advisor\Http\Controllers\ProductForecastController;
 use App\Modules\Advisor\Http\Controllers\ReportController;
 use App\Modules\Advisor\Http\Controllers\SalesMetricsController;
 use App\Modules\Advisor\Http\Controllers\SetupController;
+use App\Modules\Advisor\Http\Controllers\SourceControlController;
 use App\Modules\AI\Http\Controllers\AskController;
 use App\Modules\AI\Http\Controllers\ConversationController;
 use App\Modules\AI\Http\Controllers\ExternalReferenceController;
@@ -51,6 +52,15 @@ Route::middleware(['throttle:api', 'auth:sanctum', 'tenant.resolve', 'tenant.mem
         Route::patch('/connections/{uuid}/status', [IntegrationController::class, 'status'])->middleware(['permission:integration.manage', 'idempotency']);
         Route::get('/connections/{uuid}/batches', [IntegrationController::class, 'batches']);
         Route::post('/connections/{uuid}/preview', [IntegrationController::class, 'preview'])->middleware(['permission:integration.sync', 'permission:data.import.manage', 'idempotency']);
+    });
+
+    Route::prefix('advisor/source-control')->middleware(['permission:advisor.sales.read', 'permission:data.sensitive.read'])->group(function () {
+        Route::get('/authorities', [SourceControlController::class, 'index']);
+        Route::get('/identities', [SourceControlController::class, 'links']);
+        Route::get('/sources', [SourceControlController::class, 'sources']);
+        Route::post('/authorities', [SourceControlController::class, 'authority'])->middleware(['permission:advisor.source.manage', 'idempotency']);
+        Route::post('/identities', [SourceControlController::class, 'link'])->middleware(['permission:advisor.source.manage', 'idempotency']);
+        Route::post('/identities/{uuid}/revoke', [SourceControlController::class, 'revoke'])->middleware(['permission:advisor.source.manage', 'idempotency']);
     });
 
     Route::prefix('advisor/decisions')->middleware(['permission:advisor.decision.read', 'permission:advisor.report.read', 'permission:data.sensitive.read'])->group(function () {
