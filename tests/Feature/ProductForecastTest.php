@@ -307,4 +307,32 @@ class ProductForecastTest extends TestCase
         $this->actor(['advisor.forecast.run', 'advisor.sales.read', 'data.sensitive.read', 'advisor.data.review']);
         $this->getJson('/api/advisor/forecast-schedules')->assertForbidden();
     }
+
+    public function test_schedule_review_rolls_back_incomplete_evidence_and_rejects_expired_period(): void
+    {
+        $this->travelTo(CarbonImmutable::parse('2026-09-28 10:00:00', 'UTC'));
+        $p = $this->series();
+        $created = $this->withHeader('Idempotency-Key', Str::uuid())->postJson('/api/advisor/forecast-schedules', ['product_uuid' => $p['product_uuid'], 'area_uuid' => $p['area_uuid'], 'source_system' => 'primary', 'history_weeks' => 12, 'local_hour' => 8])->assertCreated()->json('data');
+        app(TenantContext::class)->setTenant($this->currentTenant);
+        InvoiceLine::query()->where('external_id', 'L11')->update(['net_amount_minor' => 999]);
+        $url = '/api/advisor/forecast-schedules/'.$created['uuid'].'/review';
+        $body = ['version' => 1, 'coverage_acknowledge' => true, 'coverage_note' => 'Verified this weekly scope with independent report'];
+        $this->withHeader('Idempotency-Key', Str::uuid())->postJson($url, $body)->assertUnprocessable();
+        $this->assertDatabaseCount('advisor_product_forecast_runs', 0);
+        $this->assertDatabaseHas('advisor_forecast_schedules', ['uuid' => $created['uuid'], 'version' => 1, 'review_pending' => true]);
+        $this->travelTo(CarbonImmutable::parse('2026-10-05 10:00:00', 'UTC'));
+        $this->withHeader('Idempotency-Key', Str::uuid())->postJson($url, $body)->assertStatus(409);
+        $this->assertDatabaseCount('advisor_product_forecast_runs', 0);
+    }
+
+    public function test_future_week_forecast_is_reviewed_as_prospective_only_after_completion(): void
+    {
+        $this->travelTo(CarbonImmutable::parse('2026-09-28 10:00:00', 'UTC'));
+        $p = $this->series();
+        $saved = $this->analyze([...$p, 'horizon_weeks' => 2])->assertOk()->json('data');
+        $this->travelTo(CarbonImmutable::parse('2026-10-12 10:00:00', 'UTC'));
+        $this->imported('invoices', "external_id,invoice_date,due_date,customer_number,employee_number,currency,net_amount\nINVfuture,2026-10-05,2026-12-01,C1,E1,USD,10.00\n");
+        $this->imported('invoice_lines', "external_id,invoice_external_id,product_code,quantity,net_amount\nLfuture,INVfuture,P1,15,10.00\n");
+        $this->withHeader('Idempotency-Key', Str::uuid())->postJson('/api/advisor/product-forecasts/'.$saved['uuid'].'/evaluations', ['coverage_acknowledge' => true, 'coverage_note' => 'Verified complete actual period after future week ended', 'evidence_reference' => 'Future-week-source'])->assertOk()->assertJsonPath('data.saved_before_period', true)->assertJsonPath('data.evaluation_kind', 'prospective_review')->assertJsonPath('data.actual_quantity', 15)->assertJsonPath('data.forecast.quantity', 12);
+    }
 }
