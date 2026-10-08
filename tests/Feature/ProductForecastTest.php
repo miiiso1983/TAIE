@@ -7,7 +7,9 @@ use App\Models\Permission;
 use App\Models\Role;
 use App\Models\Tenant;
 use App\Models\User;
+use App\Modules\Advisor\Jobs\PrepareScheduledForecast;
 use App\Modules\Advisor\Models\Area;
+use App\Modules\Advisor\Models\ForecastSchedule;
 use App\Modules\Advisor\Models\InvoiceLine;
 use App\Modules\Advisor\Models\Product;
 use App\Modules\Advisor\Models\ProductForecastRun;
@@ -37,7 +39,7 @@ class ProductForecastTest extends TestCase
         config(['teami.audit_hmac_key' => str_repeat('a', 48), 'teami.billing_enforce' => false]);
     }
 
-    private function actor(array $permissions = ['data.import.manage', 'data.sensitive.read', 'data.sales.import', 'data.catalog.import', 'advisor.sales.read', 'advisor.data.review', 'advisor.forecast.run', 'hr.employee.create', 'sales.customer.create', 'sales.customer.update']): array
+    private function actor(array $permissions = ['data.import.manage', 'data.sensitive.read', 'data.sales.import', 'data.catalog.import', 'advisor.sales.read', 'advisor.data.review', 'advisor.forecast.run', 'advisor.forecast.manage', 'hr.employee.create', 'sales.customer.create', 'sales.customer.update']): array
     {
         $tenant = Tenant::query()->create(['name' => 'Import Fixture', 'slug' => 't-'.Str::random(8)]);
         $user = User::factory()->create();
@@ -255,5 +257,54 @@ class ProductForecastTest extends TestCase
         $this->assertDatabaseCount('advisor_product_forecast_runs', 2);
         $this->analyze([...$p, 'horizon_weeks' => 2])->assertOk()->assertJsonPath('data.uuid', $two['uuid']);
         $this->analyze([...$p, 'horizon_weeks' => 3])->assertUnprocessable();
+    }
+
+    public function test_weekly_schedule_requires_fresh_human_coverage_and_stops_after_permission_revocation(): void
+    {
+        $this->travelTo(CarbonImmutable::parse('2026-09-28 10:00:00', 'UTC'));
+        $p = $this->series();
+        $body = ['product_uuid' => $p['product_uuid'], 'area_uuid' => $p['area_uuid'], 'source_system' => 'primary', 'history_weeks' => 12, 'local_hour' => 8];
+        $created = $this->withHeader('Idempotency-Key', Str::uuid())->postJson('/api/advisor/forecast-schedules', $body)->assertCreated()->assertJsonPath('data.review_pending', true)->assertJsonPath('data.review_to', '2026-09-27T00:00:00.000000Z')->json('data');
+        $this->assertDatabaseCount('advisor_product_forecast_runs', 0);
+        $url = '/api/advisor/forecast-schedules/'.$created['uuid'];
+        $this->withHeader('Idempotency-Key', Str::uuid())->postJson('/api/advisor/forecast-schedules', $body)->assertStatus(409);
+        $review = ['version' => 1, 'coverage_acknowledge' => true, 'coverage_note' => 'Verified this exact weekly source cohort'];
+        $approved = $this->withHeader('Idempotency-Key', Str::uuid())->postJson($url.'/review', $review)->assertOk()->assertJsonPath('data.review_pending', false)->json('data');
+        $this->getJson('/api/advisor/product-forecasts/'.$approved['last_forecast_uuid'])->assertOk()->assertJsonPath('data.forecast.from', '2026-10-05');
+        $this->withHeader('Idempotency-Key', Str::uuid())->postJson($url.'/review', $review)->assertStatus(409);
+        app(TenantContext::class)->setTenant($this->currentTenant);
+        $schedule = ForecastSchedule::query()->firstOrFail();
+        $this->travelTo(CarbonImmutable::parse('2026-10-05 10:00:00', 'UTC'));
+        $job = new PrepareScheduledForecast($this->currentTenant->id, $schedule->id);
+        $job->handle();
+        app(TenantContext::class)->setTenant($this->currentTenant);
+        $schedule->refresh();
+        $this->assertTrue($schedule->review_pending);
+        $this->assertSame('2026-10-04', $schedule->review_to->toDateString());
+        $version = $schedule->version;
+        $job->handle();
+        app(TenantContext::class)->setTenant($this->currentTenant);
+        $this->assertSame($version, $schedule->refresh()->version);
+        $this->assertDatabaseCount('advisor_product_forecast_runs', 1);
+        DB::table('permission_role')->where('permission_id', Permission::query()->where('name', 'advisor.forecast.manage')->value('id'))->delete();
+        $this->travelTo(CarbonImmutable::parse('2026-10-12 10:00:00', 'UTC'));
+        $job->handle();
+        app(TenantContext::class)->setTenant($this->currentTenant);
+        $this->assertFalse($schedule->refresh()->enabled);
+        $this->assertSame('permission_or_subscription_revoked', $schedule->last_error_code);
+    }
+
+    public function test_schedule_mutations_are_tenant_scoped_versioned_and_permission_checked(): void
+    {
+        $p = $this->series();
+        $created = $this->withHeader('Idempotency-Key', Str::uuid())->postJson('/api/advisor/forecast-schedules', ['product_uuid' => $p['product_uuid'], 'area_uuid' => $p['area_uuid'], 'source_system' => 'primary', 'history_weeks' => 12, 'local_hour' => 8])->assertCreated()->json('data');
+        $url = '/api/advisor/forecast-schedules/'.$created['uuid'];
+        $this->withHeader('Idempotency-Key', Str::uuid())->postJson($url.'/disable', ['version' => 9])->assertStatus(409);
+        $this->withHeader('Idempotency-Key', Str::uuid())->postJson($url.'/disable', ['version' => 1])->assertOk()->assertJsonPath('data.enabled', false);
+        $this->actor();
+        $this->getJson('/api/advisor/forecast-schedules')->assertOk()->assertJsonPath('data.total', 0);
+        $this->withHeader('Idempotency-Key', Str::uuid())->postJson($url.'/disable', ['version' => 2])->assertNotFound();
+        $this->actor(['advisor.forecast.run', 'advisor.sales.read', 'data.sensitive.read', 'advisor.data.review']);
+        $this->getJson('/api/advisor/forecast-schedules')->assertForbidden();
     }
 }

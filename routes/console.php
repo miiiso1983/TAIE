@@ -5,6 +5,8 @@ use App\Jobs\RuntimeHeartbeat;
 use App\Models\IdempotencyKey;
 use App\Models\Tenant;
 use App\Modules\Advisor\Jobs\GenerateScheduledReport;
+use App\Modules\Advisor\Jobs\PrepareScheduledForecast;
+use App\Modules\Advisor\Models\ForecastSchedule;
 use App\Modules\Advisor\Models\ImportBatch;
 use App\Modules\Advisor\Models\ReportSchedule;
 use App\Modules\Billing\Models\TenantSubscription;
@@ -12,6 +14,7 @@ use Illuminate\Foundation\Inspiring;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Schedule;
+use Illuminate\Support\Facades\Schema;
 
 Artisan::command('inspire', function () {
     $this->comment(Inspiring::quote());
@@ -37,3 +40,12 @@ Schedule::call(function () {
 Schedule::call(function () {
     ImportBatch::withoutGlobalScopes()->whereIn('status', ['invalid', 'validated'])->where('expires_at', '<=', now())->update(['status' => 'expired', 'payload_encrypted' => null, 'errors_encrypted' => null]);
 })->name('advisor-import-expiry')->hourly()->withoutOverlapping();
+
+Schedule::call(function () {
+    if (! Schema::hasTable('advisor_forecast_schedules')) {
+        return;
+    }
+    ForecastSchedule::withoutGlobalScopes()->whereIn('tenant_id', Tenant::query()->where('status', 'active')->select('id'))->where('enabled', true)->where('next_run_at', '<=', now())->orderBy('id')->limit(100)->get()->each(function ($s) {
+        PrepareScheduledForecast::dispatch($s->tenant_id, $s->id);
+    });
+})->name('advisor-forecast-review-dispatch')->everyMinute()->withoutOverlapping();

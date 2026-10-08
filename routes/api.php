@@ -10,6 +10,7 @@ use App\Modules\Advisor\Http\Controllers\CompanyRuleController;
 use App\Modules\Advisor\Http\Controllers\DataQualityController;
 use App\Modules\Advisor\Http\Controllers\DecisionController;
 use App\Modules\Advisor\Http\Controllers\ForecastEvaluationController;
+use App\Modules\Advisor\Http\Controllers\ForecastScheduleController;
 use App\Modules\Advisor\Http\Controllers\ImportController;
 use App\Modules\Advisor\Http\Controllers\ProductForecastController;
 use App\Modules\Advisor\Http\Controllers\ReportController;
@@ -117,6 +118,10 @@ Route::middleware(['throttle:api', 'auth:sanctum', 'tenant.resolve', 'tenant.mem
     });
     Route::get('/advisor/product-forecasts/{uuid}/evaluations', [ForecastEvaluationController::class, 'index'])->middleware(['permission:advisor.forecast.run', 'permission:advisor.sales.read', 'permission:data.sensitive.read']);
     Route::post('/advisor/product-forecasts/{uuid}/evaluations', [ForecastEvaluationController::class, 'store'])->middleware(['permission:advisor.forecast.run', 'permission:advisor.sales.read', 'permission:data.sensitive.read', 'permission:advisor.data.review', 'idempotency', 'throttle:imports']);
+    Route::get('/advisor/forecast-schedules', [ForecastScheduleController::class, 'index'])->middleware(['permission:advisor.forecast.manage', 'permission:advisor.forecast.run', 'permission:advisor.sales.read', 'permission:data.sensitive.read', 'permission:advisor.data.review']);
+    Route::post('/advisor/forecast-schedules', [ForecastScheduleController::class, 'store'])->middleware(['permission:advisor.forecast.manage', 'permission:advisor.forecast.run', 'permission:advisor.sales.read', 'permission:data.sensitive.read', 'permission:advisor.data.review', 'idempotency']);
+    Route::post('/advisor/forecast-schedules/{uuid}/review', [ForecastScheduleController::class, 'review'])->middleware(['permission:advisor.forecast.manage', 'permission:advisor.forecast.run', 'permission:advisor.sales.read', 'permission:data.sensitive.read', 'permission:advisor.data.review', 'idempotency']);
+    Route::post('/advisor/forecast-schedules/{uuid}/disable', [ForecastScheduleController::class, 'disable'])->middleware(['permission:advisor.forecast.manage', 'permission:advisor.forecast.run', 'permission:advisor.sales.read', 'permission:data.sensitive.read', 'permission:advisor.data.review', 'idempotency']);
     Route::get('/advisor/product-forecasts', [ProductForecastController::class, 'index'])->middleware(['permission:advisor.forecast.run', 'permission:advisor.sales.read', 'permission:data.sensitive.read']);
     Route::get('/advisor/product-forecasts/{uuid}', [ProductForecastController::class, 'show'])->middleware(['permission:advisor.forecast.run', 'permission:advisor.sales.read', 'permission:data.sensitive.read']);
     Route::post('/advisor/product-forecast', [ProductForecastController::class, 'analyze'])->middleware(['permission:advisor.forecast.run', 'permission:advisor.sales.read', 'permission:data.sensitive.read', 'idempotency', 'throttle:imports']);
