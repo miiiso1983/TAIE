@@ -10,6 +10,7 @@ use App\Models\User;
 use App\Modules\Advisor\Models\Area;
 use App\Modules\Advisor\Models\InvoiceLine;
 use App\Modules\Advisor\Models\Product;
+use App\Modules\Advisor\Models\ProductForecastRun;
 use App\Modules\Advisor\Models\SourceAuthority;
 use App\Modules\HR\Models\Employee;
 use App\Modules\Sales\Models\Customer;
@@ -202,5 +203,46 @@ class ProductForecastTest extends TestCase
         $this->assertSame($a['forecast']['model'], $b['forecast']['model']);
         $this->assertSame($a['backtest']['mae'], $b['backtest']['mae']);
         $this->assertNotSame($a['backtest']['holdout_mae'], $b['backtest']['holdout_mae']);
+    }
+
+    public function test_completed_forecast_review_freezes_actual_evidence_and_keeps_original_prediction(): void
+    {
+        $p = $this->series();
+        $saved = $this->analyze($p)->assertOk()->json('data');
+        $this->imported('invoices', "external_id,invoice_date,due_date,customer_number,employee_number,currency,net_amount\nINV12,2026-09-28,2026-12-01,C1,E1,USD,10.00\n");
+        $this->imported('invoice_lines', "external_id,invoice_external_id,product_code,quantity,net_amount\nL12,INV12,P1,15,10.00\n");
+        $body = ['coverage_acknowledge' => true, 'coverage_note' => 'Checked all twelve weeks and actual week source report', 'evidence_reference' => 'Actual-week-2026-09-28'];
+        $url = '/api/advisor/product-forecasts/'.$saved['uuid'].'/evaluations';
+        $first = $this->withHeader('Idempotency-Key', Str::uuid())->postJson($url, $body)->assertOk()->assertJsonPath('data.actual_quantity', 15)->assertJsonPath('data.absolute_error', 3)->assertJsonPath('data.saved_before_period', false)->json('data');
+        $this->withHeader('Idempotency-Key', Str::uuid())->postJson($url, $body)->assertOk()->assertJsonPath('data.uuid', $first['uuid']);
+        $this->assertDatabaseCount('advisor_forecast_evaluations', 1);
+        $this->assertStringNotContainsString('Checked all twelve', DB::table('advisor_forecast_evaluations')->value('snapshot_encrypted'));
+        app(TenantContext::class)->setTenant($this->currentTenant);
+        InvoiceLine::query()->where('external_id', 'L12')->update(['quantity' => '18']);
+        $this->withHeader('Idempotency-Key', Str::uuid())->postJson($url, $body)->assertOk()->assertJsonPath('data.actual_quantity', 18);
+        $this->assertDatabaseCount('advisor_forecast_evaluations', 2);
+        $this->getJson($url)->assertOk()->assertJsonPath('data.data.1.actual_quantity', 15);
+        $this->getJson('/api/advisor/product-forecasts/'.$saved['uuid'])->assertOk()->assertJsonPath('data.forecast.quantity', 12);
+        $this->actor();
+        $this->getJson($url)->assertNotFound();
+        $this->withHeader('Idempotency-Key', Str::uuid())->postJson($url, $body)->assertNotFound();
+    }
+
+    public function test_forecast_review_requires_completed_week_coverage_and_review_permission(): void
+    {
+        $p = $this->series();
+        $saved = $this->analyze($p)->assertOk()->json('data');
+        $url = '/api/advisor/product-forecasts/'.$saved['uuid'].'/evaluations';
+        $body = ['coverage_acknowledge' => true, 'coverage_note' => 'Checked complete source report', 'evidence_reference' => 'Actual-week'];
+        $this->withHeader('Idempotency-Key', Str::uuid())->postJson($url, [...$body, 'coverage_acknowledge' => false])->assertUnprocessable();
+        app(TenantContext::class)->setTenant($this->currentTenant);
+        $run = ProductForecastRun::query()->firstOrFail();
+        $snapshot = $run->snapshot_encrypted;
+        $snapshot['forecast']['to'] = now()->addWeek()->toDateString();
+        $run->update(['snapshot_encrypted' => $snapshot]);
+        $this->withHeader('Idempotency-Key', Str::uuid())->postJson($url, $body)->assertUnprocessable();
+        $this->actor(['advisor.forecast.run', 'advisor.sales.read', 'data.sensitive.read']);
+        $this->withHeader('Idempotency-Key', Str::uuid())->postJson($url, $body)->assertForbidden();
+        $this->assertDatabaseCount('advisor_forecast_evaluations', 0);
     }
 }

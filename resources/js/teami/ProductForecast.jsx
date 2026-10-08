@@ -3,13 +3,17 @@ import { Button } from '@fluentui/react-components';
 import { api } from './api';
 import { FormDialog, Notice, Pager, QueryState, RecordTable, SectionCard, useQuery } from './components';
 export function ProductForecast({can}) {
- const [open,setOpen]=useState(false),[result,setResult]=useState(null),[page,setPage]=useState(1),[selected,setSelected]=useState(null);
+ const [open,setOpen]=useState(false),[result,setResult]=useState(null),[page,setPage]=useState(1),[selected,setSelected]=useState(null),[reviewOpen,setReviewOpen]=useState(false);
  const history=useQuery(can('advisor.forecast.run')?'/advisor/product-forecasts?page='+page:null),saved=useQuery(selected?'/advisor/product-forecasts/'+selected:null);
+ const evaluations=useQuery(selected?'/advisor/product-forecasts/'+selected+'/evaluations':null);
  const display=selected?saved.data?.data:result;
  if(!can('advisor.forecast.run'))return null;
  return <SectionCard title="توقع المنتج والمنطقة — تجريبي" action={<Button onClick={()=>setOpen(true)}>تحليل 12 أسبوعاً أو أكثر</Button>}>
  <Notice>توقع كمية البيع قبل المرتجعات لأسبوع واحد. يقارن آخر أسبوع بمتوسط أربعة أسابيع، ويضيف مقارنة 52 أسبوعاً عند توافر 60 أسبوعاً، باختبار زمني بأثر رجعي. لا يُستخدم وحده لقرار شراء أو مكافأة.</Notice>
  {display&&<ForecastResult result={display}/>}<QueryState query={saved}/>
+ {selected&&display?.forecast&&<SectionCard title="مراجعة النتيجة الفعلية" action={can('advisor.data.review')&&<Button onClick={()=>setReviewOpen(true)}>مراجعة الأسبوع المكتمل</Button>}><Notice>تحتاج المراجعة إلى بيانات أسبوع التوقع وإقرار تغطية مستقل. حفظ التوقع بعد بداية أسبوعه يجعل المقارنة تاريخية.</Notice><QueryState query={evaluations}><RecordTable caption="مراجعات محفوظة للنتيجة" rows={evaluations.data?.data?.data??[]} columns={[{key:'reviewed_at',label:'وقت المراجعة'},{key:'actual_quantity',label:'الكمية الفعلية'},{key:'absolute_error',label:'الخطأ المطلق'},{key:'evaluation_kind',label:'نوع المقارنة',render:x=>x.saved_before_period?'توقع محفوظ قبل بداية الأسبوع':'مراجعة تاريخية'},{key:'evidence_reference',label:'مرجع الدليل'}]}/></QueryState></SectionCard>}
+ {reviewOpen&&selected&&<FormDialog title="توثيق النتيجة الفعلية" fields={[{name:'evidence_reference',label:'مرجع تقرير المصدر المستقل',required:true,minLength:3,maxLength:250},{name:'coverage_note',label:'مراجعة تغطية 12 أسبوعاً تنتهي بأسبوع النتيجة',type:'textarea',required:true,minLength:12,maxLength:1000},{name:'coverage_acknowledge',label:'إقرار تغطية الفترة والوحدة',boolean:true,required:true,options:[{value:'true',label:'راجعت الفترة، والأسابيع دون مبيعات هي صفر فعلي'}]}]} save={(data,key)=>api('/advisor/product-forecasts/'+selected+'/evaluations',{method:'POST',data,key})} onClose={()=>setReviewOpen(false)} onSaved={()=>{setReviewOpen(false);evaluations.refresh();}}/>}
+
  <QueryState query={history}><RecordTable caption="تحليلات التوقع المحفوظة" rows={history.data?.data?.data??[]} columns={[{key:'product_code',label:'المنتج'},{key:'area_code',label:'المنطقة'},{key:'saved_at',label:'وقت الحفظ'},{key:'status',label:'الحالة',render:x=>x.status==='experimental'?'تجريبي':'بيانات غير كافية'},{key:'open',label:'الأدلة',render:x=><Button onClick={()=>setSelected(x.uuid)}>فتح النسخة</Button>}]}/><Pager meta={history.data?.data} setPage={setPage}/></QueryState>
  {open&&<FormDialog title="تحليل توقع منتج ومنطقة" description="اختر فترة من الاثنين إلى الأحد، 12 إلى 104 أسابيع مكتملة. إقرارك يسمح باعتبار الأسبوع بلا مبيعات صفراً ضمن المصدر والنطاق، ولا يؤكد تغطية النظام كله." fields={[
  {name:'product_uuid',label:'المنتج',required:true,remote:{path:'/advisor/data/catalog?kind=products',label:x=>x.code+' · '+x.name}},
