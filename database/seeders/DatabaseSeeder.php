@@ -34,6 +34,7 @@ class DatabaseSeeder extends Seeder
             'advisor.decision.read' => 'advisor',
             'advisor.decision.manage' => 'advisor',
             'advisor.sales.read' => 'advisor',
+            'advisor.market.manage' => 'advisor',
             'advisor.report.read' => 'advisor',
             'advisor.report.generate' => 'advisor',
             'advisor.report.manage' => 'advisor',

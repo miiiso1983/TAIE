@@ -7,6 +7,7 @@ use App\Core\Tenancy\TenantContext;
 use App\Http\Controllers\Controller;
 use App\Models\Tenant;
 use App\Modules\Advisor\Models\CoverageConfirmation;
+use App\Modules\Advisor\Services\SalesMarketContextService;
 use App\Modules\Advisor\Services\SalesMetricsService;
 use Carbon\CarbonImmutable;
 use Illuminate\Http\Request;
@@ -19,7 +20,7 @@ class SalesMetricsController extends Controller
     private function filters(Request $r, TenantContext $context): array
     {
         $today = now($context->requireTenant()->timezone ?: 'UTC')->toDateString();
-        $d = $r->validate(['from' => ['required', 'date_format:Y-m-d'], 'to' => ['required', 'date_format:Y-m-d', 'after_or_equal:from'], 'as_of' => ['required', 'date_format:Y-m-d', 'after_or_equal:to', 'before_or_equal:'.$today], 'currency' => ['nullable', 'in:USD,IQD'], 'employee_uuid' => ['nullable', 'uuid'], 'page' => ['sometimes', 'integer', 'min:1']]);
+        $d = $r->validate(['fx_basis' => ['sometimes', 'in:official,market'], 'fx_reference_date' => ['nullable', 'date_format:Y-m-d', 'before_or_equal:from'], 'from' => ['required', 'date_format:Y-m-d'], 'to' => ['required', 'date_format:Y-m-d', 'after_or_equal:from'], 'as_of' => ['required', 'date_format:Y-m-d', 'after_or_equal:to', 'before_or_equal:'.$today], 'currency' => ['nullable', 'in:USD,IQD'], 'employee_uuid' => ['nullable', 'uuid'], 'page' => ['sometimes', 'integer', 'min:1']]);
         abort_if(CarbonImmutable::parse($d['from'])->diffInDays(CarbonImmutable::parse($d['to'])) > 366, 422, 'The reporting period must be at most 367 days.');
 
         return $d;
@@ -30,7 +31,24 @@ class SalesMetricsController extends Controller
         $d = $this->filters($r, $context);
         $result = $service->dataset($d);
 
-        return response()->json(['data' => ['filters' => $d, 'generated_at' => now()->toISOString(), 'basis' => 'invoice_cohort_collections_through_as_of', 'rows' => $result['rows'], 'quality' => $result['quality']]]);
+        return response()->json(['data' => ['filters' => $d, 'generated_at' => now()->toISOString(), 'basis' => 'invoice_cohort_collections_through_as_of', 'market_context' => $result['market_context'], 'rows' => $result['rows'], 'quality' => $result['quality']]]);
+    }
+
+    public function economicComparison(Request $r, TenantContext $context, SalesMetricsService $service)
+    {
+        $d = $this->filters($r, $context);
+        $d['fx_reference_date'] = $d['fx_reference_date'] ?? $d['from'];
+
+        return DB::transaction(function () use ($d, $service) {
+            Tenant::query()->whereKey(app(TenantContext::class)->getTenantId())->lockForUpdate()->firstOrFail();
+            $days = (int) CarbonImmutable::parse($d['from'])->diffInDays(CarbonImmutable::parse($d['to'])) + 1;
+            $previousTo = CarbonImmutable::parse($d['from'])->subDay();
+            $previousFilters = [...$d, 'from' => $previousTo->subDays($days - 1)->toDateString(), 'to' => $previousTo->toDateString(), 'as_of' => $previousTo->toDateString()];
+            $current = $service->dataset($d);
+            $previous = $service->dataset($previousFilters);
+
+            return response()->json(['data' => ['analyses' => app(SalesMarketContextService::class)->bothPeriods($d, $previousFilters, $current, $previous), 'previous_period' => array_intersect_key($previousFilters, array_flip(['from', 'to', 'as_of'])), 'coverage_confirmed' => ['current' => $current['quality']['coverage_confirmed'], 'previous' => $previous['quality']['coverage_confirmed']]]]);
+        });
     }
 
     public function confirmCoverage(Request $r, TenantContext $context, SalesMetricsService $service)

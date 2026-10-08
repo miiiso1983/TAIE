@@ -41,7 +41,7 @@ class ReportController extends Controller
     public function generate(Request $r, ReportService $service)
     {
         $today = now(app(TenantContext::class)->requireTenant()->timezone ?: 'UTC')->toDateString();
-        $d = $r->validate(['kind' => ['required', 'in:sales,hr'], 'from' => ['required', 'date_format:Y-m-d'], 'to' => ['required', 'date_format:Y-m-d', 'after_or_equal:from'], 'as_of' => ['required', 'date_format:Y-m-d', 'after_or_equal:to', 'before_or_equal:'.$today], 'new_version' => ['sometimes', 'boolean']]);
+        $d = $r->validate(['fx_basis' => ['sometimes', 'in:official,market'], 'fx_reference_date' => ['nullable', 'date_format:Y-m-d', 'before_or_equal:from'], 'kind' => ['required', 'in:sales,hr'], 'from' => ['required', 'date_format:Y-m-d'], 'to' => ['required', 'date_format:Y-m-d', 'after_or_equal:from'], 'as_of' => ['required', 'date_format:Y-m-d', 'after_or_equal:to', 'before_or_equal:'.$today], 'new_version' => ['sometimes', 'boolean']]);
         abort_if(CarbonImmutable::parse($d['from'])->diffInDays(CarbonImmutable::parse($d['to'])) > 366, 422, 'The report period must be at most 367 days.');
         $report = $service->generate($d, $r->user());
 

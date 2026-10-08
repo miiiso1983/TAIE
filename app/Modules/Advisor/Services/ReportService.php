@@ -57,11 +57,13 @@ class ReportService
 
     private function sales(array $d): array
     {
+        $d['fx_reference_date'] = $d['fx_reference_date'] ?? $d['from'];
         $current = app(SalesMetricsService::class)->dataset($d);
         $days = (int) CarbonImmutable::parse($d['from'])->diffInDays(CarbonImmutable::parse($d['to'])) + 1;
         $previousTo = CarbonImmutable::parse($d['from'])->subDay();
         $previousFrom = $previousTo->subDays($days - 1);
-        $previous = app(SalesMetricsService::class)->dataset(['from' => $previousFrom->toDateString(), 'to' => $previousTo->toDateString(), 'as_of' => $previousTo->toDateString()]);
+        $previousFilters = ['from' => $previousFrom->toDateString(), 'to' => $previousTo->toDateString(), 'as_of' => $previousTo->toDateString(), 'fx_basis' => $d['fx_basis'] ?? 'official', 'fx_reference_date' => $d['fx_reference_date']];
+        $previous = app(SalesMetricsService::class)->dataset($previousFilters);
         $totals = function ($rows) {
             $groups = [];
             foreach ($rows as $r) {
@@ -74,7 +76,7 @@ class ReportService
             return $groups;
         };
 
-        return ['engine_version' => 1, 'kind' => 'sales', 'filters' => array_intersect_key($d, array_flip(['from', 'to', 'as_of'])), 'totals' => $totals($current['rows']), 'rows' => $current['rows'], 'evidence' => $current['evidence'], 'quality' => $current['quality'],
+        return ['engine_version' => 2, 'kind' => 'sales', 'market_context' => app(SalesMarketContextService::class)->bothPeriods($d, $previousFilters, $current, $previous), 'filters' => array_intersect_key($d, array_flip(['from', 'to', 'as_of'])), 'totals' => $totals($current['rows']), 'rows' => $current['rows'], 'evidence' => $current['evidence'], 'quality' => $current['quality'],
             'previous' => ['from' => $previousFrom->toDateString(), 'to' => $previousTo->toDateString(), 'as_of' => $previousTo->toDateString(), 'totals' => $totals($previous['rows'])],
             'notes' => ['المقارنة مع فترة سابقة مساوية بعدد الأيام، وتحصيلاتها حتى نهايتها فقط. إذا امتد تاريخ قياس الفترة الحالية بعد نهايتها، تختلف نافذة التحصيل بين الفترتين.', 'العملات مستقلة والبيانات غير مؤكدة التغطية. التقرير نسخة محفوظة ولا يتغير مع الاستيراد التالي.']];
     }

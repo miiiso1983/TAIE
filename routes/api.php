@@ -12,6 +12,7 @@ use App\Modules\Advisor\Http\Controllers\DecisionController;
 use App\Modules\Advisor\Http\Controllers\ForecastEvaluationController;
 use App\Modules\Advisor\Http\Controllers\ForecastScheduleController;
 use App\Modules\Advisor\Http\Controllers\ImportController;
+use App\Modules\Advisor\Http\Controllers\MarketContextController;
 use App\Modules\Advisor\Http\Controllers\ProductForecastController;
 use App\Modules\Advisor\Http\Controllers\ReportController;
 use App\Modules\Advisor\Http\Controllers\SalesMetricsController;
@@ -126,6 +127,10 @@ Route::middleware(['throttle:api', 'auth:sanctum', 'tenant.resolve', 'tenant.mem
     Route::get('/advisor/product-forecasts/{uuid}', [ProductForecastController::class, 'show'])->middleware(['permission:advisor.forecast.run', 'permission:advisor.sales.read', 'permission:data.sensitive.read']);
     Route::post('/advisor/product-forecast', [ProductForecastController::class, 'analyze'])->middleware(['permission:advisor.forecast.run', 'permission:advisor.sales.read', 'permission:data.sensitive.read', 'idempotency', 'throttle:imports']);
     Route::get('/advisor/setup', [SetupController::class, 'index'])->middleware(['permission:advisor.sales.read', 'permission:data.sensitive.read']);
+    Route::get('/advisor/sales/economic-comparison', [SalesMetricsController::class, 'economicComparison'])->middleware(['permission:advisor.sales.read', 'permission:data.sensitive.read']);
+    Route::get('/advisor/market-context', [MarketContextController::class, 'index'])->middleware(['permission:advisor.sales.read', 'permission:data.sensitive.read']);
+    Route::post('/advisor/market-context', [MarketContextController::class, 'store'])->middleware(['permission:advisor.sales.read', 'permission:data.sensitive.read', 'permission:advisor.market.manage', 'idempotency']);
+    Route::post('/advisor/market-context/{uuid}/revoke', [MarketContextController::class, 'revoke'])->middleware(['permission:advisor.sales.read', 'permission:data.sensitive.read', 'permission:advisor.market.manage', 'idempotency']);
     Route::get('/advisor/sales/metrics', [SalesMetricsController::class, 'metrics'])->middleware(['permission:advisor.sales.read', 'permission:data.sensitive.read']);
     Route::get('/advisor/sales/invoices', [SalesMetricsController::class, 'invoices'])->middleware(['permission:advisor.sales.read', 'permission:data.sensitive.read']);
     Route::prefix('advisor/imports')->middleware(['permission:data.import.manage', 'permission:data.sensitive.read'])->group(function () {

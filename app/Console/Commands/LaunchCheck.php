@@ -36,14 +36,14 @@ class LaunchCheck extends Command
             DB::select('SELECT 1');
             $checks['Database reachable'] = true;
             $checks['Billing migrations applied'] = Schema::hasTable('billing_payments');
-            foreach (['advisor_coverage_confirmations', 'advisor_products', 'advisor_areas', 'advisor_invoice_lines', 'advisor_reconciliations', 'advisor_decisions', 'advisor_decision_events', 'advisor_inventory_observations', 'advisor_bonus_approvals', 'advisor_product_forecast_runs', 'advisor_source_authorities', 'advisor_identity_links', 'advisor_company_rules', 'advisor_rule_simulations', 'advisor_forecast_evaluations', 'advisor_forecast_schedules'] as $table) {
+            foreach (['advisor_coverage_confirmations', 'advisor_products', 'advisor_areas', 'advisor_invoice_lines', 'advisor_reconciliations', 'advisor_decisions', 'advisor_decision_events', 'advisor_inventory_observations', 'advisor_bonus_approvals', 'advisor_product_forecast_runs', 'advisor_source_authorities', 'advisor_identity_links', 'advisor_company_rules', 'advisor_rule_simulations', 'advisor_forecast_evaluations', 'advisor_forecast_schedules', 'advisor_market_context'] as $table) {
                 $checks['Schema '.$table] = Schema::hasTable($table);
             }
             $checks['Reconciliation method installed'] = Schema::hasColumn('advisor_reconciliations', 'method');
             $checks['Forecast decision evidence installed'] = Schema::hasColumn('advisor_decisions', 'forecast_run_id');
             $checks['Policy review history installed'] = Schema::hasColumn('advisor_company_rules', 'status_history_encrypted');
             $checks['Invoice area installed'] = Schema::hasColumn('advisor_sales_invoices', 'area_id');
-            foreach (['advisor.decision.read', 'advisor.decision.manage', 'advisor.forecast.run', 'advisor.forecast.manage', 'advisor.bonus.approve.stage2', 'advisor.bonus.approve.stage3', 'advisor.data.review', 'data.catalog.import', 'advisor.source.manage', 'advisor.rule.manage', 'advisor.rule.approve'] as $permission) {
+            foreach (['advisor.decision.read', 'advisor.decision.manage', 'advisor.forecast.run', 'advisor.forecast.manage', 'advisor.market.manage', 'advisor.bonus.approve.stage2', 'advisor.bonus.approve.stage3', 'advisor.data.review', 'data.catalog.import', 'advisor.source.manage', 'advisor.rule.manage', 'advisor.rule.approve'] as $permission) {
                 $checks['Permission catalog '.$permission] = DB::table('permissions')->where('name', $permission)->where('guard_name', 'api')->exists();
             }
             $checks['Platform privileges removed from tenant owners'] = ! DB::table('permission_role')->join('permissions', 'permissions.id', '=', 'permission_role.permission_id')->join('roles', 'roles.id', '=', 'permission_role.role_id')->where('roles.name', 'Tenant Owner')->where('permissions.name', 'like', 'platform.%')->exists();
