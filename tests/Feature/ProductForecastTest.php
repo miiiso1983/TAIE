@@ -245,4 +245,15 @@ class ProductForecastTest extends TestCase
         $this->withHeader('Idempotency-Key', Str::uuid())->postJson($url, $body)->assertForbidden();
         $this->assertDatabaseCount('advisor_forecast_evaluations', 0);
     }
+
+    public function test_forecast_horizon_is_validated_and_archived_independently(): void
+    {
+        $p = $this->series();
+        $one = $this->analyze($p)->assertOk()->json('data');
+        $two = $this->analyze([...$p, 'horizon_weeks' => 2])->assertOk()->assertJsonPath('data.forecast.from', '2026-10-05')->assertJsonPath('data.backtest.horizon_weeks', 2)->json('data');
+        $this->assertNotSame($one['uuid'], $two['uuid']);
+        $this->assertDatabaseCount('advisor_product_forecast_runs', 2);
+        $this->analyze([...$p, 'horizon_weeks' => 2])->assertOk()->assertJsonPath('data.uuid', $two['uuid']);
+        $this->analyze([...$p, 'horizon_weeks' => 3])->assertUnprocessable();
+    }
 }

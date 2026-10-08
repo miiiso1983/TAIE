@@ -77,7 +77,7 @@ class ProductForecastService
         $inputs = $observations->orderBy('id')->get();
         $stockouts = $inputs->where('kind', 'stockouts')->filter(fn ($x) => $x->end_date->toDateString() >= $d['from']);
         $fingerprint = hash('sha256', json_encode([$authority?->uuid, $d['from'], $d['to'], $d['source_system'], $product->uuid, $area->uuid, $cohort->toArray(), $allLines->toArray(), $returns->toArray(), $returnLines->toArray(), $inputs->toArray()], JSON_THROW_ON_ERROR));
-        $warnings = ['التوقع تجريبي لكمية البيع قبل المرتجعات في الأسبوع التالي، ولا يمثل الطلب غير الملبى أو وعداً بالدقة.', 'توزع المرتجعات وصفياً على أسبوع الفاتورة الأصلية حتى نهاية الفترة؛ لا تدخل صافي الكميات أو المرتجعات المتأخرة في تدريب التوقع.', 'اعتبار الأسبوع بلا مبيعات صفراً يعتمد على إقرار التغطية البشرية، ولا يمكن إثباته من غياب السجلات.', 'نطاق الخطأ وصفي من أخطاء الاختبار الزمني ولا يحمل احتمال تغطية إحصائياً معتمداً.', 'آخر أربعة أسابيع محجوبة عن اختيار النموذج، لكنها أربع نقاط فقط ولا تكفي لإثبات دقة عامة.', 'الاختبار بأثر رجعي حسب تاريخ الفاتورة؛ قد تشمل البيانات تصحيحات واستيرادات لم تكن متاحة وقتها. يلزم قبول حي لإثبات الأداء المستقبلي.', 'لا تستخدم التكاليف أو السكان كمعامل سببي؛ لا يجري خلط العملات أو تقدير الأرباح.'];
+        $warnings = ['التوقع تجريبي لكمية البيع قبل المرتجعات في أسبوع التوقع المحدد، ولا يمثل الطلب غير الملبى أو وعداً بالدقة.', 'توزع المرتجعات وصفياً على أسبوع الفاتورة الأصلية حتى نهاية الفترة؛ لا تدخل صافي الكميات أو المرتجعات المتأخرة في تدريب التوقع.', 'اعتبار الأسبوع بلا مبيعات صفراً يعتمد على إقرار التغطية البشرية، ولا يمكن إثباته من غياب السجلات.', 'نطاق الخطأ وصفي من أخطاء الاختبار الزمني ولا يحمل احتمال تغطية إحصائياً معتمداً.', 'آخر أربعة أسابيع محجوبة عن اختيار النموذج، لكنها أربع نقاط فقط ولا تكفي لإثبات دقة عامة.', 'الاختبار بأثر رجعي حسب تاريخ الفاتورة؛ قد تشمل البيانات تصحيحات واستيرادات لم تكن متاحة وقتها. يلزم قبول حي لإثبات الأداء المستقبلي.', 'لا تستخدم التكاليف أو السكان كمعامل سببي؛ لا يجري خلط العملات أو تقدير الأرباح.'];
         if ($stockouts->isNotEmpty()) {
             $warnings[] = 'توجد انقطاعات مسجلة؛ الكميات المباعة قد تقل عن الطلب. لم تُقدّر المبيعات المفقودة.';
         }
@@ -85,12 +85,12 @@ class ProductForecastService
             $warnings[] = 'لا توجد أرصدة مخزون مؤرخة لهذا النطاق.';
         }
         $ready = $missing === 0 && $missingReturns === 0 && $allLines->where('product_id', $product->id)->isNotEmpty();
-        $result = ['source_authority' => $authority ? ['uuid' => $authority->uuid, 'version' => $authority->version, 'source_system' => $authority->source_system] : null, 'algorithm_version' => 'weekly_baselines_v3_seasonal', 'product' => ['uuid' => $product->uuid, 'code' => $product->code, 'unit' => $product->base_unit], 'area' => ['uuid' => $area->uuid, 'code' => $area->code], 'scope' => array_intersect_key($d, array_flip(['source_system', 'from', 'to'])), 'fingerprint' => $fingerprint, 'series' => array_values($weeks), 'readiness' => ['complete_invoice_count' => $count - $missing, 'incomplete_invoice_count' => $missing, 'incomplete_return_count' => $missingReturns, 'stockout_count' => $stockouts->count(), 'coverage_note' => $d['coverage_note'], 'coverage_acknowledged_by_human' => true], 'status' => $ready ? 'experimental' : 'insufficient_data', 'warnings' => $warnings, 'forecast' => null];
+        $result = ['source_authority' => $authority ? ['uuid' => $authority->uuid, 'version' => $authority->version, 'source_system' => $authority->source_system] : null, 'algorithm_version' => 'weekly_baselines_v4_horizon', 'product' => ['uuid' => $product->uuid, 'code' => $product->code, 'unit' => $product->base_unit], 'area' => ['uuid' => $area->uuid, 'code' => $area->code], 'scope' => array_intersect_key($d, array_flip(['source_system', 'from', 'to', 'horizon_weeks'])), 'fingerprint' => $fingerprint, 'series' => array_values($weeks), 'readiness' => ['complete_invoice_count' => $count - $missing, 'incomplete_invoice_count' => $missing, 'incomplete_return_count' => $missingReturns, 'stockout_count' => $stockouts->count(), 'coverage_note' => $d['coverage_note'], 'coverage_acknowledged_by_human' => true], 'status' => $ready ? 'experimental' : 'insufficient_data', 'warnings' => $warnings, 'forecast' => null];
         if (! $ready) {
             return $result;
         }
-        $result = [...$result, ...app(WeeklyForecastModelService::class)->evaluate(array_values($weeks))];
-        $result['warnings'][] = 'المقارنة الموسمية تستخدم تأخر 52 أسبوعاً عند توافر 60 أسبوعاً على الأقل؛ لا تمثل أعياداً متحركة أو عروضاً أو دليلاً على موسمية الطلب.';
+        $result = [...$result, ...app(WeeklyForecastModelService::class)->evaluate(array_values($weeks), (int) ($d['horizon_weeks'] ?? 1))];
+        $result['warnings'][] = 'المقارنة الموسمية تستخدم تأخر 52 أسبوعاً عند توافر 60 أسبوعاً للأفق الأول أو 61 للأفق الثاني؛ لا تمثل أعياداً متحركة أو عروضاً أو دليلاً على موسمية الطلب.';
 
         return $result;
     }

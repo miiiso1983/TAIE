@@ -50,4 +50,21 @@ class WeeklyForecastModelTest extends TestCase
         $this->assertSame('selection', $long['backtest']['origins'][3]['phase']);
         $this->assertSame('holdout', $long['backtest']['origins'][4]['phase']);
     }
+
+    public function test_two_week_lead_excludes_the_intervening_actual_and_uses_matching_backtest_horizon(): void
+    {
+        $rows = $this->series(12);
+        $service = new WeeklyForecastModelService;
+        $a = $service->evaluate($rows, 2);
+        $this->assertSame('2024-04-01', $a['forecast']['from']);
+        $this->assertSame('2024-04-07', $a['forecast']['to']);
+        $this->assertSame($rows[5]['to'], $a['backtest']['origins'][0]['training_to']);
+        $this->assertSame($rows[7]['from'], $a['backtest']['origins'][0]['test_from']);
+        $rows[6]['sold_milli'] = 999999;
+        $b = $service->evaluate($rows, 2);
+        $this->assertSame($a['backtest']['origins'][0], $b['backtest']['origins'][0]);
+        $this->assertFalse($a['backtest']['seasonal_candidate_enabled']);
+        $this->assertFalse($service->evaluate($this->series(60), 2)['backtest']['seasonal_candidate_enabled']);
+        $this->assertTrue($service->evaluate($this->series(61), 2)['backtest']['seasonal_candidate_enabled']);
+    }
 }
