@@ -175,6 +175,9 @@ class AdvisorQualityTest extends TestCase
 
     public function test_existing_invoice_imports_work_before_business_catalog_upgrade(): void
     {
+        if (DB::connection()->getDriverName() !== 'sqlite') {
+            $this->markTestSkipped('Legacy schema emulation needs transactional SQLite DDL; covered by SQLite CI.');
+        }
         $migration = require database_path('migrations/2026_10_07_000001_create_advisor_quality_foundation.php');
         $migration->down();
         [$tenant, $user, , $batch] = $this->fixture();

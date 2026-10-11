@@ -21,6 +21,9 @@ class RestoreRehearsalTest extends TestCase
 
     public function test_synthetic_cold_restore_preserves_schema_encryption_tenant_scope_and_audit_chain(): void
     {
+        if (DB::connection()->getDriverName() !== 'sqlite') {
+            $this->markTestSkipped('SQLite cold-restore rehearsal runs in the dedicated SQLite CI job.');
+        }
         $original = DB::getDefaultConnection();
         $this->assertSame(':memory:', DB::connection()->getDatabaseName());
         config(['teami.audit_hmac_key' => str_repeat('r', 48)]);

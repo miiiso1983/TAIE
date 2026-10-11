@@ -18,6 +18,11 @@ class TenantIsolationTest extends TestCase
 {
     use RefreshDatabase;
 
+    public function test_unauthenticated_api_request_without_accept_header_returns_json(): void
+    {
+        $this->get('/api/tenant/context')->assertUnauthorized()->assertJsonPath('message', 'Unauthenticated.');
+    }
+
     public function test_tenant_scoped_repository_cannot_return_another_tenants_record(): void
     {
         $tenantA = Tenant::query()->create(['name' => 'A', 'slug' => 'a']);

@@ -29,6 +29,7 @@ return Application::configure(basePath: dirname(__DIR__))
     )
     ->withMiddleware(function (Middleware $middleware): void {
         $middleware->append(SecurityHeaders::class);
+        $middleware->redirectGuestsTo(fn (Request $request): ?string => $request->is('api/*') ? null : '/');
         $middleware->alias([
             'billing.access' => RequireSubscription::class,
             'billing.ai-quota' => EnforceAiQuota::class,
@@ -41,6 +42,7 @@ return Application::configure(basePath: dirname(__DIR__))
         $middleware->api(append: [AssignRequestId::class]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {
+        $exceptions->shouldRenderJsonWhen(fn (Request $request, Throwable $e): bool => $request->is('api/*') || $request->expectsJson());
         $exceptions->render(function (Throwable $e, Request $request): ?Response {
             if (! $request->attributes->get('api_error_envelope')) {
                 return null;
