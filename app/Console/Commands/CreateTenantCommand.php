@@ -4,13 +4,9 @@ namespace App\Console\Commands;
 
 use App\Core\Logging\AuditTrailService;
 use App\Core\Tenancy\TenantContext;
-use App\Models\Permission;
-use App\Models\Role;
-use App\Models\Tenant;
 use App\Models\User;
+use App\Modules\Platform\Services\TenantProvisioner;
 use Illuminate\Console\Command;
-use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Validation\Rules\Password;
 
@@ -36,23 +32,7 @@ class CreateTenantCommand extends Command
             return self::FAILURE;
         }
 
-        $tenant = DB::transaction(function () use ($context, $audit, $email, $password): Tenant {
-            $tenant = Tenant::query()->create(['slug' => $this->argument('slug'), 'name' => $this->argument('name'), 'status' => 'active']);
-            $owner = User::query()->create(['name' => $this->argument('owner_name'), 'email' => $email, 'password' => Hash::make($password), 'status' => 'active']);
-            $tenant->users()->attach($owner, ['status' => 'active', 'joined_at' => now()]);
-            $role = Role::query()->create(['tenant_id' => $tenant->id, 'name' => 'Tenant Owner', 'guard_name' => 'api']);
-            $permissions = Permission::query()->where('guard_name', 'api')->where('name', 'not like', 'platform.%')->get();
-            $role->permissions()->sync($permissions->modelKeys());
-            DB::table('role_user')->insert(['tenant_id' => $tenant->id, 'role_id' => $role->id, 'user_id' => $owner->id]);
-            $context->setTenant($tenant);
-            try {
-                $audit->record('tenant.provisioned', ['module' => 'tenancy', 'entity_type' => 'tenant', 'entity_id' => $tenant->uuid, 'user_id' => $owner->id]);
-            } finally {
-                $context->clear();
-            }
-
-            return $tenant;
-        });
+        $tenant = app(TenantProvisioner::class)->create(['slug' => $this->argument('slug'), 'name' => $this->argument('name'), 'owner_email' => $email, 'owner_name' => $this->argument('owner_name'), 'password' => $password]);
 
         $this->info('Tenant and owner account were created.');
         $this->line('Tenant UUID: '.$tenant->uuid);

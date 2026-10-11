@@ -1,3 +1,4 @@
+import { PlatformWorkspace } from './Platform';
 import {Brand, BrandBlocks} from './Brand';
 import { CompanyRules } from './CompanyRules';
 import { SourceControl } from './SourceControl';
@@ -132,7 +133,7 @@ export default function App() {
         const controller = new AbortController();
         if (!localStorage.getItem('teami_token')) { setBooting(false); return; }
         setBooting(true); setBootError('');
-        api('/tenant/context', { signal: controller.signal }).then(r => { if (!controller.signal.aborted) setContext(r.data); }).catch(error => { if (!controller.signal.aborted && error.status !== 401) setBootError(error.message); }).finally(() => { if (!controller.signal.aborted) setBooting(false); });
+        api('/platform/context', { signal: controller.signal }).then(r => r.data?.platform_owner ? r : api('/tenant/context', { signal: controller.signal })).then(r => { if (!controller.signal.aborted) setContext(r.data); }).catch(error => { if (!controller.signal.aborted && error.status !== 401) setBootError(error.message); }).finally(() => { if (!controller.signal.aborted) setBooting(false); });
         return () => controller.abort();
     }, [attempt]);
     useEffect(() => { const expired = () => { clearSession(); setContext(null); setBootError(''); }; window.addEventListener('teami:unauthorized', expired); return () => window.removeEventListener('teami:unauthorized', expired); }, []);
@@ -140,6 +141,6 @@ export default function App() {
     const toggleTheme = () => setThemeMode(mode => { const next = mode === 'dark' ? 'light' : 'dark'; localStorage.setItem('teami_theme', next); return next; });
     const theme = { ...(themeMode === 'dark' ? darkTheme : lightTheme), fontFamilyBase: '"IBM Plex Sans Arabic", "IBM Plex Sans", "Segoe UI", sans-serif', fontFamilyNumeric: '"IBM Plex Sans", sans-serif' };
     return <FluentProvider theme={theme} dir="rtl" className="teami-provider" data-theme={themeMode}>
-        {booting ? <div className="boot-screen"><Brand /><Spinner label="جارٍ فتح مساحة العمل…" /></div> : bootError ? <div className="boot-screen"><Brand /><Notice intent="error">{bootError}</Notice><div className="actions"><Button appearance="primary" onClick={() => setAttempt(x => x + 1)}>إعادة المحاولة</Button><Button onClick={logout}>تسجيل الخروج</Button></div></div> : context ? <Workspace context={context} themeMode={themeMode} toggleTheme={toggleTheme} logout={logout} /> : <Login onAuthenticated={() => setAttempt(x => x + 1)} />}
+        {booting ? <div className="boot-screen"><Brand /><Spinner label="جارٍ فتح مساحة العمل…" /></div> : bootError ? <div className="boot-screen"><Brand /><Notice intent="error">{bootError}</Notice><div className="actions"><Button appearance="primary" onClick={() => setAttempt(x => x + 1)}>إعادة المحاولة</Button><Button onClick={logout}>تسجيل الخروج</Button></div></div> : context ? (context.platform_owner ? <PlatformWorkspace context={context} themeMode={themeMode} toggleTheme={toggleTheme} logout={logout} /> : <Workspace context={context} themeMode={themeMode} toggleTheme={toggleTheme} logout={logout} />) : <Login onAuthenticated={() => setAttempt(x => x + 1)} />}
     </FluentProvider>;
 }

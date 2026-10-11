@@ -4,6 +4,7 @@ use App\Core\Tenancy\TenantContext;
 use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\MembershipController;
 use App\Http\Controllers\Api\TenantFileController;
+use App\Http\Middleware\RequirePlatformOwner;
 use App\Models\Permission;
 use App\Modules\Advisor\Http\Controllers\BonusController;
 use App\Modules\Advisor\Http\Controllers\CompanyRuleController;
@@ -33,18 +34,31 @@ use App\Modules\HR\Http\Controllers\OnboardingController;
 use App\Modules\HR\Http\Controllers\PayrollController;
 use App\Modules\HR\Http\Controllers\PositionController;
 use App\Modules\Integrations\Http\Controllers\IntegrationController;
+use App\Modules\Platform\Http\Controllers\TenantController;
 use App\Modules\Sales\Http\Controllers\CRMController;
 use App\Modules\Sales\Http\Controllers\CustomerController;
 use App\Modules\Sales\Http\Controllers\OpportunityController;
 use App\Modules\Sales\Http\Controllers\PipelineController;
 use App\Modules\Sales\Http\Controllers\SalesOperationsController;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Route;
 
 Route::middleware(['throttle:api', 'throttle:login'])->post('/auth/login', [AuthController::class, 'login']);
 Route::middleware(['throttle:api', 'throttle:password-reset'])->group(function () {
     Route::post('/auth/forgot-password', [AuthController::class, 'sendPasswordResetLink']);
     Route::post('/auth/reset-password', [AuthController::class, 'resetPassword']);
+});
+
+Route::middleware(['throttle:api', 'auth:sanctum'])->get('/platform/context', function (Request $request) {
+    abort_unless($request->user()->status === 'active', 403);
+    $owner = DB::table('platform_owners')->where('user_id', $request->user()->id)->exists();
+
+    return response()->json(['data' => ['platform_owner' => $owner, 'user' => ['name' => $request->user()->name, 'email' => $request->user()->email]]]);
+});
+Route::middleware(['throttle:api', 'auth:sanctum', RequirePlatformOwner::class])->prefix('platform')->group(function () {
+    Route::get('/tenants', [TenantController::class, 'index']);
+    Route::post('/tenants', [TenantController::class, 'store']);
 });
 
 Route::middleware(['throttle:api', 'auth:sanctum', 'tenant.resolve', 'tenant.membership', 'tenant.active', 'billing.access'])->group(function () {

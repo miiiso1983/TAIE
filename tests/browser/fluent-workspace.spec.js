@@ -6,12 +6,13 @@ const ids = {
     leave: '55555555-5555-4555-8555-555555555555', customer: '66666666-6666-4666-8666-666666666666',
 };
 const allPermissions = ['hr.employee.read', 'hr.employee.create', 'hr.employee.update', 'hr.department.read', 'hr.position.read', 'hr.leave.read', 'hr.leave.create', 'hr.leave.manage', 'hr.leave.approve', 'hr.payroll.read', 'data.sensitive.read', 'sales.customer.read', 'sales.customer.create', 'sales.opportunity.read', 'ai.knowledge.read', 'ai.ask', 'billing.subscription.read', 'billing.usage.read'];
-async function fixture(page, { signedIn = true, permissions = allPermissions, mfa = false, failUpdateOnce = false } = {}) {
+async function fixture(page, { signedIn = true, permissions = allPermissions, mfa = false, failUpdateOnce = false, platformOwner = false } = {}) {
     const writes = [], errors = [];
     const department = { uuid: ids.department, name: 'المبيعات' }, position = { uuid: ids.position, title: 'مدير المبيعات', department };
     const employee = { uuid: ids.employee, employee_number: 'EMP-1', first_name: 'موظف', last_name: 'تجريبي', work_email: 'employee@example.test', employment_status: 'active', employment_type: 'full_time', hired_at: '2026-01-01', department, position };
     const employees = [employee], customers = [{ uuid: ids.customer, customer_number: 'C-1', name: 'شركة الاختبار', type: 'organization', status: 'active', country_code: 'IQ', email: 'contact@example.test' }];
     let leaves = [];
+    const platformTenants = [{uuid:'platform-company',name:'شركة منصة تجريبية',slug:'fixture-company',status:'active',users_count:1}];
     const type = { uuid: ids.type, code: 'ANNUAL', name: 'سنوية', status: 'active', requires_approval: true, annual_allowance_days: '20.00' };
     const types = [type];
     page.on('pageerror', e => errors.push(e.message));
@@ -37,8 +38,11 @@ async function fixture(page, { signedIn = true, permissions = allPermissions, mf
             const x={uuid:'reconciliation-1',method:'record_matching',source_system:'primary',from:'2026-09-01',to:'2026-09-30',as_of:'2026-10-06',currency:'USD',status:'mismatched',current_status:'mismatched',evidence_reference:'Independent-Report',review_note:'راجعت تقرير المصدر المستقل',snapshot:{expected:actual,actual,record_counts:{matched:0,missing_in_teami:0,unexpected_in_teami:0,changed_fields:1},differences:{invoices:{count:0,amount_minor:'0'},receipts:{count:0,amount_minor:'0'},returns:{count:0,amount_minor:'0'}}},current:{readiness:{invoices_without_area:0,invoices_without_lines:0,invoices_with_line_difference:0}}};
             reconciliationRows.push(x);return fulfill({data:x},201);
         }
+        if (path === '/platform/context') return fulfill({data:{platform_owner:platformOwner,user:{name:'مالك المنصة',email:'platform@example.test'}}});
+        if (path === '/platform/tenants' && request.method() === 'GET') return fulfill({data:platformTenants,current_page:1,last_page:1,total:platformTenants.length});
         if (request.method() !== 'GET') {
             const data = request.postDataJSON(); writes.push({ path, data, method: request.method(), key: request.headers()['idempotency-key'] });
+            if (path === '/platform/tenants') {const tenant={uuid:'new-platform-company',name:data.name,slug:data.slug,status:'active',users_count:1};platformTenants.unshift(tenant);return fulfill({data:tenant},201);}
             if (path === '/advisor/sales/coverage') {coverageConfirmed=true;return fulfill({data:{uuid:'coverage-1'}},201);}
             if (path === '/advisor/data/reconciliations') {
                 const actual={invoices:{count:1,amount_minor:'10000'},receipts:{count:1,amount_minor:'5000'},returns:{count:0,amount_minor:'0'}};
@@ -541,4 +545,23 @@ test('Detailed reconciliation uploads source records and shows field evidence',a
     await choose(page,page.getByRole('combobox',{name:'نوع فروقات السجلات',exact:true}),'changed_fields');
     const write=writes.find(x=>x.path.endsWith('/detailed'));expect(write.contentType).toContain('multipart/form-data');expect(write.body).toContain('evidence.csv');expect(write.body).toContain('0001');expect(write.key).toBeTruthy();expect(errors).toEqual([]);
     if(process.env.TEAMI_CAPTURE_PREVIEW)await page.screenshot({path:'/tmp/teami-record-reconciliation.png',fullPage:true,animations:'disabled'});
+});
+
+
+test('platform owner creates tenant accounts without exposing tenant workspace', async ({page}) => {
+    const state=await fixture(page,{platformOwner:true});
+    await page.goto('/#rules');
+    await expect(page.getByRole('heading',{name:'شركات المستأجرين',exact:true})).toBeVisible();
+    await expect(page.getByRole('button',{name:'الموظفون',exact:true})).toHaveCount(0);
+    await page.getByRole('button',{name:'إنشاء مستأجر جديد',exact:true}).click();
+    const dialog=page.getByRole('dialog');
+    for(const [label,value] of [['اسم الشركة','شركة جديدة'],['رمز الشركة بالإنجليزية','new-company'],['اسم مالك الشركة','مالك جديد'],['بريد مالك الشركة','owner@example.test'],['كلمة المرور الأولية','Fixture-Password42!'],['تأكيد كلمة المرور','Fixture-Password42!']]) await dialog.getByLabel(label).fill(value);
+    await dialog.getByRole('button',{name:'حفظ',exact:true}).click();
+    await expect(dialog).toHaveCount(0);
+    await expect(page.getByRole('table',{name:'شركات المستأجرين'}).getByText('شركة جديدة',{exact:true})).toBeVisible();
+    await expect(page.getByRole('table',{name:'شركات المستأجرين'}).getByText('new-platform-company',{exact:true})).toBeVisible();
+    const write=state.writes.find(x=>x.path==='/platform/tenants');
+    expect(write.data.owner_email).toBe('owner@example.test');
+    expect(write.key).toBeTruthy();
+    expect(state.errors).toEqual([]);
 });
