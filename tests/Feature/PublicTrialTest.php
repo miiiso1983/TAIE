@@ -9,6 +9,7 @@ use App\Models\User;
 use App\Modules\Billing\Models\BillingPlan;
 use App\Modules\Billing\Models\TenantSubscription;
 use App\Modules\Billing\Services\BillingService;
+use App\Modules\Platform\Models\CompanyTrialRegistration;
 use Carbon\Carbon;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Cache;

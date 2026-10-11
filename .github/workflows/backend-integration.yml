@@ -108,9 +108,14 @@ jobs:
           php artisan key:generate
           touch database/database.sqlite
           php artisan migrate --force
+          php artisan db:seed --force
           npm run test:ui
         env:
           TEAMI_UI_START_SERVER: '1'
+          TEAMI_LIVE_TRIAL_TEST: '1'
+          AUDIT_HMAC_KEY: 0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef
+          BILLING_ENFORCE: 'true'
+          MAIL_MAILER: array
 
       - name: Save public page previews
         if: always()
