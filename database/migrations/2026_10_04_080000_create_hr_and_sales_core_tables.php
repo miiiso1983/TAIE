@@ -93,7 +93,7 @@ return new class extends Migration
             $table->timestamps();
             $table->foreign(['tenant_id', 'employee_id'])->references(['tenant_id', 'id'])->on('hr_employees')->cascadeOnDelete();
             $table->foreign(['tenant_id', 'approved_by'])->references(['tenant_id', 'user_id'])->on('tenant_users')->restrictOnDelete();
-            $table->index(['tenant_id', 'employee_id', 'effective_from']);
+            $table->index(['tenant_id', 'employee_id', 'effective_from'], 'hr_compensation_employee_effective_idx');
         });
 
         Schema::create('hr_attendance_records', function (Blueprint $table) {
@@ -111,7 +111,7 @@ return new class extends Migration
             $table->text('notes')->nullable();
             $table->unsignedBigInteger('recorded_by')->nullable();
             $table->timestamps();
-            $table->unique(['tenant_id', 'employee_id', 'work_date', 'shift_code']);
+            $table->unique(['tenant_id', 'employee_id', 'work_date', 'shift_code'], 'hr_attendance_employee_date_shift_unique');
             $table->foreign(['tenant_id', 'employee_id'])->references(['tenant_id', 'id'])->on('hr_employees')->cascadeOnDelete();
             $table->foreign(['tenant_id', 'recorded_by'])->references(['tenant_id', 'user_id'])->on('tenant_users')->restrictOnDelete();
             $table->index(['tenant_id', 'work_date', 'status']);
@@ -142,7 +142,7 @@ return new class extends Migration
             $table->decimal('used_days', 7, 2)->default(0);
             $table->decimal('pending_days', 7, 2)->default(0);
             $table->timestamps();
-            $table->unique(['tenant_id', 'employee_id', 'leave_type_id', 'year']);
+            $table->unique(['tenant_id', 'employee_id', 'leave_type_id', 'year'], 'hr_leave_employee_type_year_unique');
             $table->foreign(['tenant_id', 'employee_id'])->references(['tenant_id', 'id'])->on('hr_employees')->cascadeOnDelete();
             $table->foreign(['tenant_id', 'leave_type_id'])->references(['tenant_id', 'id'])->on('hr_leave_types')->cascadeOnDelete();
         });
@@ -195,7 +195,7 @@ return new class extends Migration
             $table->string('status')->default('draft');
             $table->timestamp('submitted_at')->nullable();
             $table->timestamps();
-            $table->unique(['tenant_id', 'cycle_id', 'employee_id', 'reviewer_employee_id']);
+            $table->unique(['tenant_id', 'cycle_id', 'employee_id', 'reviewer_employee_id'], 'hr_review_cycle_employee_reviewer_unique');
             $table->foreign(['tenant_id', 'cycle_id'])->references(['tenant_id', 'id'])->on('hr_performance_cycles')->cascadeOnDelete();
             $table->foreign(['tenant_id', 'employee_id'])->references(['tenant_id', 'id'])->on('hr_employees')->cascadeOnDelete();
             $table->foreign(['tenant_id', 'reviewer_employee_id'])->references(['tenant_id', 'id'])->on('hr_employees')->restrictOnDelete();
@@ -309,8 +309,8 @@ return new class extends Migration
             $table->timestamp('closed_at')->nullable();
             $table->timestamps();
             $table->foreign(['tenant_id', 'employee_id'])->references(['tenant_id', 'id'])->on('hr_employees')->cascadeOnDelete();
-            $table->foreign(['tenant_id', 'opened_by_employee_id'])->references(['tenant_id', 'id'])->on('hr_employees')->restrictOnDelete();
-            $table->foreign(['tenant_id', 'assigned_to_employee_id'])->references(['tenant_id', 'id'])->on('hr_employees')->restrictOnDelete();
+            $table->foreign(['tenant_id', 'opened_by_employee_id'], 'hr_relations_opened_by_fk')->references(['tenant_id', 'id'])->on('hr_employees')->restrictOnDelete();
+            $table->foreign(['tenant_id', 'assigned_to_employee_id'], 'hr_relations_assigned_to_fk')->references(['tenant_id', 'id'])->on('hr_employees')->restrictOnDelete();
             $table->index(['tenant_id', 'status', 'severity']);
         });
 
@@ -480,7 +480,7 @@ return new class extends Migration
             $table->string('status')->default('active');
             $table->timestamps();
             $table->foreign(['tenant_id', 'owner_user_id'])->references(['tenant_id', 'user_id'])->on('tenant_users')->restrictOnDelete();
-            $table->index(['tenant_id', 'metric', 'period_starts_on', 'period_ends_on']);
+            $table->index(['tenant_id', 'metric', 'period_starts_on', 'period_ends_on'], 'sales_targets_metric_period_idx');
         });
 
         Schema::create('sales_forecasts', function (Blueprint $table) {
@@ -499,7 +499,7 @@ return new class extends Migration
             $table->timestamp('generated_at')->nullable();
             $table->timestamps();
             $table->foreign(['tenant_id', 'created_by'])->references(['tenant_id', 'user_id'])->on('tenant_users')->restrictOnDelete();
-            $table->unique(['tenant_id', 'period_starts_on', 'period_ends_on', 'name']);
+            $table->unique(['tenant_id', 'period_starts_on', 'period_ends_on', 'name'], 'sales_forecasts_period_name_unique');
             $table->index(['tenant_id', 'status', 'period_ends_on']);
         });
     }

@@ -40,7 +40,7 @@ return new class extends Migration
             $t->unique(['tenant_id', 'source_system', 'external_id'], 'advisor_target_external_unique');
             $t->foreign(['tenant_id', 'batch_id'])->references(['tenant_id', 'id'])->on('advisor_import_batches')->restrictOnDelete();
             $t->foreign(['tenant_id', 'employee_id'])->references(['tenant_id', 'id'])->on('hr_employees')->restrictOnDelete();
-            $t->index(['tenant_id', 'employee_id', 'currency', 'period_from']);
+            $t->index(['tenant_id', 'employee_id', 'currency', 'period_from'], 'advisor_targets_employee_currency_period_idx');
         });
         Schema::create('advisor_bonus_policies', function (Blueprint $t) {
             $t->id();

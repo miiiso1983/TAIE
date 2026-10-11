@@ -81,7 +81,7 @@ return new class extends Migration
             $t->unsignedBigInteger('created_by');
             $t->timestamps();
             $t->foreign(['tenant_id', 'created_by'])->references(['tenant_id', 'user_id'])->on('tenant_users')->restrictOnDelete();
-            $t->index(['tenant_id', 'source_system', 'period_from', 'period_to']);
+            $t->index(['tenant_id', 'source_system', 'period_from', 'period_to'], 'advisor_reconciliations_source_period_idx');
         });
     }
 
