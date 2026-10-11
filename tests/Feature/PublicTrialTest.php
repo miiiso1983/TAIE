@@ -163,6 +163,8 @@ class PublicTrialTest extends TestCase
         Carbon::setTestNow('2026-11-03 12:00:00 UTC');
         $this->postJson('/api/hr/departments', ['code' => 'OPS', 'name' => 'Operations'])->assertForbidden();
         $this->postJson('/api/ai/ask', ['question' => 'Question'])->assertForbidden();
+        $this->postJson('/api/files', [])->assertForbidden();
+        $this->postJson('/api/integrations/connections', [])->assertForbidden();
         $this->getJson('/api/tenant/context')->assertOk();
         $this->getJson('/api/hr/departments')->assertOk();
         $this->getJson('/api/billing/trial')->assertOk()->assertJsonPath('data.state', 'expired');
