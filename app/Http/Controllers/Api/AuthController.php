@@ -21,12 +21,24 @@ class AuthController extends Controller
 {
     public function login(Request $request, TenantContext $context, AuditTrailService $audit, MFAProviderInterface $mfa): JsonResponse
     {
-        $validated = $request->validate(['email' => 'required|email|max:255', 'password' => 'required|string', 'tenant' => 'required|string|max:255', 'device_name' => 'nullable|string|max:100', 'mfa_code' => 'nullable|string|max:32']);
+        $request->merge([
+            'email' => is_string($request->input('email')) ? mb_strtolower(trim($request->input('email'))) : $request->input('email'),
+            'tenant' => is_string($request->input('tenant')) ? (trim($request->input('tenant')) ?: null) : $request->input('tenant'),
+        ]);
+        $validated = $request->validate(['email' => 'required|email|max:255', 'password' => 'required|string', 'tenant' => 'nullable|string|max:255', 'device_name' => 'nullable|string|max:100', 'mfa_code' => 'nullable|string|max:32']);
         $user = User::query()->where('email', mb_strtolower(trim($validated['email'])))->first();
         if (! $user || $user->status !== 'active' || ! Hash::check($validated['password'], $user->password)) {
             abort(401, 'Invalid credentials.');
         }
-        $tenant = Tenant::query()->where('uuid', $validated['tenant'])->orWhere('slug', $validated['tenant'])->first();
+        if (filled($validated['tenant'] ?? null)) {
+            $tenant = Tenant::query()->where('uuid', $validated['tenant'])->orWhere('slug', $validated['tenant'])->first();
+        } else {
+            $memberships = $user->tenants()->where('tenants.status', 'active')->wherePivot('status', 'active')->limit(2)->get();
+            if ($memberships->count() > 1) {
+                return response()->json(['success' => false, 'error' => ['code' => 'TENANT_REQUIRED', 'message' => 'حسابك مرتبط بأكثر من شركة. أدخل معرّف الشركة لإكمال الدخول.']], 422);
+            }
+            $tenant = $memberships->first();
+        }
         if (! $tenant || $tenant->status !== 'active' || ! $tenant->users()->whereKey($user->getKey())->wherePivot('status', 'active')->exists()) {
             abort(401, 'Invalid credentials.');
         }
