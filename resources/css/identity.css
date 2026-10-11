@@ -1,19 +1,15 @@
 /* TAIE identity, from the attached Visual Identity v1.0. Fonts are served locally. */
-@font-face{font-family:'IBM Plex Sans Arabic';src:url('/fonts/IBMPlexSansArabic-Regular.ttf') format('truetype');font-style:normal;font-weight:400;font-display:swap}
-@font-face{font-family:'IBM Plex Sans Arabic';src:url('/fonts/IBMPlexSansArabic-Medium.ttf') format('truetype');font-style:normal;font-weight:500;font-display:swap}
-@font-face{font-family:'IBM Plex Sans Arabic';src:url('/fonts/IBMPlexSansArabic-SemiBold.ttf') format('truetype');font-style:normal;font-weight:600;font-display:swap}
-@font-face{font-family:'IBM Plex Sans Arabic';src:url('/fonts/IBMPlexSansArabic-Bold.ttf') format('truetype');font-style:normal;font-weight:700;font-display:swap}
-@font-face{font-family:'IBM Plex Sans';src:url('/fonts/IBMPlexSans-Variable.ttf') format('truetype');font-style:normal;font-weight:100 700;font-display:swap}
-@font-face{font-family:'Syne';src:url('/fonts/Syne-Variable.ttf') format('truetype');font-style:normal;font-weight:400 800;font-display:swap}
+@font-face{font-family:'Almarai';src:url('/fonts/Almarai-400.ttf') format('truetype');font-style:normal;font-weight:400;font-display:swap}
+@font-face{font-family:'Almarai';src:url('/fonts/Almarai-700.ttf') format('truetype');font-style:normal;font-weight:700;font-display:swap}
 :root{--taie-indigo:#3700B3;--taie-violet:#6200EE;--taie-night:#14003A;--taie-sky:#54BBFC;--taie-spark:#45C98D;--taie-mist:#E6E6E6}
-body,.teami-provider{font-family:'IBM Plex Sans Arabic','IBM Plex Sans','Segoe UI',sans-serif;font-synthesis:none}
+body,.teami-provider{font-family:'Almarai','Segoe UI',sans-serif;font-synthesis:none}
 .teami-provider{--editorial-border:var(--colorNeutralStroke2);--editorial-lilac:var(--colorBrandBackground2);--header-glass:var(--colorNeutralBackground1);line-height:1.7}
 .teami-provider[data-theme=dark]{--editorial-lilac:var(--colorBrandBackground2);--header-glass:var(--colorNeutralBackground1)}
 .teami-provider h1,.teami-provider h2,.teami-provider h3{font-weight:600;letter-spacing:0}
 .brand.taie-brand{gap:12px;flex-shrink:0;color:var(--taie-indigo);padding:12px;line-height:1.2;white-space:nowrap}
 .taie-mark{display:block;width:46px;height:auto;flex-shrink:0;overflow:visible}
-.taie-brand .taie-wordmark strong{font-family:Syne,'IBM Plex Sans',sans-serif;font-weight:600;font-size:32px;letter-spacing:3px;line-height:1}
-.taie-brand .taie-wordmark span{font-family:Syne,'IBM Plex Sans',sans-serif;font-weight:500;font-size:9px;letter-spacing:0;margin-top:5px;color:var(--colorNeutralForeground3)}
+.taie-brand .taie-wordmark strong{font-family:'Almarai',sans-serif;font-weight:600;font-size:32px;letter-spacing:3px;line-height:1}
+.taie-brand .taie-wordmark span{font-family:'Almarai',sans-serif;font-weight:500;font-size:9px;letter-spacing:0;margin-top:5px;color:var(--colorNeutralForeground3)}
 .brand.taie-brand.small .taie-mark{width:36px}.brand.taie-brand.small .taie-wordmark strong{font-size:25px}.brand.taie-brand.small .taie-wordmark span{font-size:8px}
 .teami-provider[data-theme=dark] .taie-brand,.login-story .taie-brand{color:#FFF}
 .teami-provider[data-theme=dark] .taie-wordmark span,.login-story .taie-wordmark span{color:var(--taie-sky)}
@@ -39,7 +35,7 @@ body,.teami-provider{font-family:'IBM Plex Sans Arabic','IBM Plex Sans','Segoe U
 .section-card.fui-Card,.reference-card.fui-Card,.data-card.fui-Card{border:1px solid var(--colorNeutralStroke2);border-radius:12px;box-shadow:none;background:var(--colorNeutralBackground1)}
 .section-card.fui-Card{padding:24px;gap:20px}.section-heading h2{font-size:20px;font-weight:600}
 .metric-card.fui-Card{border:1px solid var(--colorNeutralStroke2);border-top:3px solid var(--taie-indigo);border-radius:10px;padding:22px;gap:12px;background:var(--colorNeutralBackground1)}
-.metric-value{font-family:'IBM Plex Sans Arabic','IBM Plex Sans',sans-serif;font-size:40px;font-weight:600;color:var(--colorNeutralForeground1);font-variant-numeric:tabular-nums}
+.metric-value{font-family:'Almarai',sans-serif;font-size:40px;font-weight:600;color:var(--colorNeutralForeground1);font-variant-numeric:tabular-nums}
 .metric-heading{font-size:14px;font-weight:500}.metric-icon,.metric-icon.teal,.metric-icon.purple,.metric-icon.amber{border:0;border-radius:6px;background:var(--colorBrandBackground2);color:var(--colorBrandForeground1);width:36px;height:36px}
 .metric-icon.teal{background:rgba(84,187,252,.15);color:var(--colorNeutralForeground1)}
 .caption{font-size:12px;line-height:1.9}.table-scroll .fui-TableHeaderCell{background:var(--colorNeutralBackground2);color:var(--colorNeutralForeground2);font-size:13px;font-weight:600;border-bottom:1px solid var(--colorNeutralStroke2);padding-block:15px}
@@ -54,13 +50,13 @@ body,.teami-provider{font-family:'IBM Plex Sans Arabic','IBM Plex Sans','Segoe U
 .editorial-hero{background:var(--taie-night);min-height:320px;border-radius:12px;padding:40px 44px;overflow:hidden;color:#FFF;isolation:isolate}
 .editorial-hero>.brand-blocks{position:absolute;inset:0;inset-inline-start:auto;width:40%;z-index:0}
 .hero-copy{max-width:58%;padding:0;background:none;border:0;border-radius:0;backdrop-filter:none;z-index:1}
-.hero-kicker{font-family:'IBM Plex Sans',sans-serif;font-size:11px;color:var(--taie-sky);letter-spacing:1px;margin-bottom:16px}
+.hero-kicker{font-family:'Almarai',sans-serif;font-size:11px;color:var(--taie-sky);letter-spacing:1px;margin-bottom:16px}
 .hero-copy h2{font-size:38px;font-weight:600;line-height:1.45!important;color:#FFF;margin-bottom:12px}.hero-copy p{color:#E0D9ED;font-size:15px;line-height:1.9;margin-bottom:20px}
 .hero-copy>.fui-Button{background:var(--taie-violet);border-radius:6px;border:1px solid #8852F4;color:#FFF;padding:10px 18px;min-height:44px}
 .hero-copy>.fui-Button:hover{background:#7534F1}.hero-copy>.fui-Button:disabled{background:#33205C;color:#B8AECF;border-color:#46365F}
 .hero-caption{position:relative;z-index:1;background:var(--taie-night);border-radius:0;color:var(--taie-sky);align-self:flex-start;font-size:12px;padding:0;margin-top:4px}
 .assistant-card.fui-Card{border:1px solid var(--colorBrandStroke2);border-inline-start:4px solid var(--taie-indigo);border-radius:12px;background:var(--colorNeutralBackground1);padding:26px;gap:16px}
-.assistant-card h2.ai-display{font-family:Syne,'IBM Plex Sans',sans-serif;font-size:30px;font-weight:700;line-height:1.2;direction:ltr;text-align:start;color:var(--colorBrandForeground1);padding-top:8px}
+.assistant-card h2.ai-display{font-family:'Almarai',sans-serif;font-size:30px;font-weight:700;line-height:1.2;direction:ltr;text-align:start;color:var(--colorBrandForeground1);padding-top:8px}
 .ai-display span{color:var(--taie-spark)}.assistant-mark{background:var(--colorBrandBackground2);color:var(--colorBrandForeground1);border-radius:8px;position:static;align-self:flex-start}
 .assistant-card>.fui-Badge{background:var(--colorBrandBackground2);color:var(--colorBrandForeground1)}
 .assistant-sample{background:var(--colorNeutralBackground2);border-radius:8px;border:1px solid var(--colorNeutralStroke2);font-size:14px;padding:14px 16px}
@@ -82,7 +78,7 @@ body,.teami-provider{font-family:'IBM Plex Sans Arabic','IBM Plex Sans','Segoe U
 @media(max-width:760px){.topbar{height:68px;padding-inline:12px}.brand.taie-brand.small .taie-mark{width:30px}.brand.taie-brand.small .taie-wordmark strong{font-size:22px}.brand.taie-brand.small .taie-wordmark span{font-size:7px}.brand.taie-brand{gap:8px;padding:8px}.workspace-strip{padding:12px 16px}.content{padding:24px 16px}.page-heading h1,.dashboard>.page-heading h1{font-size:27px}.page-heading p{font-size:13px}.editorial-hero{min-height:300px;padding:24px;display:flex;justify-content:space-between}.editorial-hero>.brand-blocks{width:23%}.hero-copy{max-width:74%}.hero-copy h2{font-size:28px}.hero-copy p{font-size:13px}.hero-kicker{font-size:9px;letter-spacing:0}.hero-caption{font-size:10px;max-width:74%;line-height:1.8}.metric-card.fui-Card{padding:16px;gap:10px}.metric-value{font-size:32px}.metric-heading{font-size:12px}.section-card.fui-Card{padding:20px}.assistant-card h2.ai-display{font-size:27px}.login-form-side{padding:24px 16px}.login-form{padding:24px;max-width:100%;border-radius:12px}.login-form h2{font-size:28px}.section-heading h2{font-size:18px}}
 @media(prefers-reduced-motion:reduce){.teami-provider *{scroll-behavior:auto}}
 
-.platform-shell .topbar{height:auto;min-height:80px;flex-wrap:wrap;gap:12px;padding-block:8px}.platform-shell .topbar>.actions{margin-inline-start:auto}.platform-shell .table-scroll bdi{font-family:'IBM Plex Sans',sans-serif;font-size:12px}
+.platform-shell .topbar{height:auto;min-height:80px;flex-wrap:wrap;gap:12px;padding-block:8px}.platform-shell .topbar>.actions{margin-inline-start:auto}.platform-shell .table-scroll bdi{font-family:'Almarai',sans-serif;font-size:12px}
 @media(max-width:760px){.platform-shell .topbar{min-height:68px;gap:6px}.platform-shell .platform-account{display:none}.platform-shell .topbar>strong{font-size:13px}.platform-shell .topbar>.actions{width:100%;justify-content:flex-end}}
 
 .subscription-calendar { display:grid; grid-template-columns:repeat(7,minmax(0,1fr)); gap:6px; margin-block:20px; }

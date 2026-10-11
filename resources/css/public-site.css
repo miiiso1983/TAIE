@@ -6,7 +6,7 @@
 .public-header nav a:hover,.public-login:hover { color:var(--colorBrandForeground1); }
 .public-login { display:inline-flex; align-items:center; gap:8px; font-weight:600; }
 .public-hero { background:#14003a; color:white; padding:80px max(32px,calc((100vw - 1176px)/2)); display:grid; grid-template-columns:1fr 1.03fr; gap:64px; align-items:center; overflow:hidden; }
-.public-eyebrow { color:#b6a1ff; font-family:'IBM Plex Sans',sans-serif; letter-spacing:.08em; font-size:12px; font-weight:600; }
+.public-eyebrow { color:#b6a1ff; font-family:'Almarai',sans-serif; letter-spacing:.08em; font-size:12px; font-weight:600; }
 .public-hero h1 { font-size:clamp(46px,5.2vw,72px); line-height:1.25; letter-spacing:-.035em; margin:20px 0 24px; font-weight:600; }
 .public-hero h1 span { color:#54bbfc; }
 .public-hero-copy > p { color:#e0d9ed; font-size:18px; max-width:470px; line-height:1.9; }
@@ -62,7 +62,7 @@
 .public-workflow { display:grid; grid-template-columns:1fr 1.1fr; gap:70px; border-block:1px solid var(--colorNeutralStroke2); }
 .public-workflow ol { list-style:none; padding:0; margin:0; display:flex; flex-direction:column; gap:30px; }
 .public-workflow li { display:flex; gap:24px; }
-.public-workflow li > span { font-family:'Syne',sans-serif; font-size:28px; color:var(--colorBrandForeground1); }
+.public-workflow li > span { font-family:'Almarai',sans-serif; font-size:28px; color:var(--colorBrandForeground1); }
 .public-workflow h3 { font-size:20px; margin:0 0 7px; font-weight:500; }
 .public-workflow li p { margin:0; color:var(--colorNeutralForeground2); }
 .public-plan-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(260px,1fr)); gap:20px; align-items:stretch; }
@@ -106,7 +106,7 @@
 .registration-form-card .muted { font-size:13px; }
 .registration-steps { list-style:none; display:flex; gap:25px; padding:0; justify-content:space-between; margin:0 0 26px; }
 .registration-steps li { display:flex; align-items:center; gap:8px; color:var(--colorNeutralForeground3); font-size:13px; }
-.registration-steps li span { width:27px; height:27px; border-radius:50%; background:var(--colorNeutralBackground3); display:grid; place-items:center; font-family:'IBM Plex Sans',sans-serif; }
+.registration-steps li span { width:27px; height:27px; border-radius:50%; background:var(--colorNeutralBackground3); display:grid; place-items:center; font-family:'Almarai',sans-serif; }
 .registration-steps li.current { color:var(--colorBrandForeground1); font-weight:600; }
 .registration-steps li.current span { background:#6200ee; color:white; }
 .registration-steps li.completed span { background:#45c98d33; color:var(--colorNeutralForeground1); }

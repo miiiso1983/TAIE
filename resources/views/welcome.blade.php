@@ -13,8 +13,8 @@
     @viteReactRefresh
     @vite('resources/js/app.jsx')
     <link rel="icon" type="image/svg+xml" href="/brand/taie-icon.svg">
-    <link rel="preload" href="/fonts/IBMPlexSansArabic-Regular.ttf" as="font" type="font/ttf" crossorigin>
-    <link rel="preload" href="/fonts/IBMPlexSansArabic-SemiBold.ttf" as="font" type="font/ttf" crossorigin>
+    <link rel="preload" href="/fonts/Almarai-400.ttf" as="font" type="font/ttf" crossorigin>
+    <link rel="preload" href="/fonts/Almarai-700.ttf" as="font" type="font/ttf" crossorigin>
 </head>
 <body>
     <div id="teami-root"></div>
