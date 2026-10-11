@@ -59,6 +59,8 @@ jobs:
           coverage: none
       - name: Install Composer dependencies
         run: composer install --no-interaction --prefer-dist --no-progress
+      - name: Prepare test environment file
+        run: cp .env.example .env
       - name: Run migrations
         run: php artisan migrate:fresh --force
       - name: Run test suite on MySQL and Redis
@@ -83,6 +85,8 @@ jobs:
           extensions: bcmath, pdo_sqlite, mbstring, xml, zip, dom, xmlreader
           coverage: none
       - run: composer install --no-interaction --prefer-dist --no-progress
+      - name: Prepare test environment file
+        run: cp .env.example .env
       - run: php artisan test
 
   frontend:
