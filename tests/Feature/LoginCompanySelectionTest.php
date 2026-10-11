@@ -11,8 +11,11 @@ class LoginCompanySelectionTest extends TestCase
 {
     use RefreshDatabase;
 
+    private static int $fixtureAddress = 20;
+
     private function account(): array
     {
+        $this->withServerVariables(['REMOTE_ADDR' => '192.0.2.'.++self::$fixtureAddress]);
         config(['teami.audit_hmac_key' => str_repeat('a', 64)]);
         $tenant = Tenant::create(['name' => 'Company', 'slug' => 'company']);
         $user = User::factory()->create(['email' => 'login@example.com', 'password' => 'fixture-password']);
