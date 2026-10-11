@@ -43,6 +43,7 @@ use App\Modules\Sales\Http\Controllers\SalesOperationsController;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Route;
+use Illuminate\Support\Facades\Schema;
 
 Route::middleware(['throttle:api', 'throttle:login'])->post('/auth/login', [AuthController::class, 'login']);
 Route::middleware(['throttle:api', 'throttle:password-reset'])->group(function () {
@@ -52,7 +53,7 @@ Route::middleware(['throttle:api', 'throttle:password-reset'])->group(function (
 
 Route::middleware(['throttle:api', 'auth:sanctum'])->get('/platform/context', function (Request $request) {
     abort_unless($request->user()->status === 'active', 403);
-    $owner = DB::table('platform_owners')->where('user_id', $request->user()->id)->exists();
+    $owner = Schema::hasTable('platform_owners') && DB::table('platform_owners')->where('user_id', $request->user()->id)->exists();
 
     return response()->json(['data' => ['platform_owner' => $owner, 'user' => ['name' => $request->user()->name, 'email' => $request->user()->email]]]);
 });
