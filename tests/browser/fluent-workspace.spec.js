@@ -12,6 +12,7 @@ async function fixture(page, { signedIn = true, permissions = allPermissions, mf
     const employee = { uuid: ids.employee, employee_number: 'EMP-1', first_name: 'موظف', last_name: 'تجريبي', work_email: 'employee@example.test', employment_status: 'active', employment_type: 'full_time', hired_at: '2026-01-01', department, position };
     const employees = [employee], customers = [{ uuid: ids.customer, customer_number: 'C-1', name: 'شركة الاختبار', type: 'organization', status: 'active', country_code: 'IQ', email: 'contact@example.test' }];
     let leaves = [];
+    const platformPlans = [], platformSubscriptions = [];
     const platformTenants = [{uuid:'platform-company',name:'شركة منصة تجريبية',slug:'fixture-company',status:'active',users_count:1}];
     const type = { uuid: ids.type, code: 'ANNUAL', name: 'سنوية', status: 'active', requires_approval: true, annual_allowance_days: '20.00' };
     const types = [type];
@@ -39,9 +40,13 @@ async function fixture(page, { signedIn = true, permissions = allPermissions, mf
             reconciliationRows.push(x);return fulfill({data:x},201);
         }
         if (path === '/platform/context') return fulfill({data:{platform_owner:platformOwner,user:{name:'مالك المنصة',email:'platform@example.test'}}});
+        if (path === '/platform/plans' && request.method() === 'GET') return fulfill({data:platformPlans});
+        if (path === '/platform/subscriptions' && request.method() === 'GET') return fulfill({data:platformSubscriptions,current_page:1,last_page:1,total:platformSubscriptions.length});
         if (path === '/platform/tenants' && request.method() === 'GET') return fulfill({data:platformTenants,current_page:1,last_page:1,total:platformTenants.length});
         if (request.method() !== 'GET') {
             const data = request.postDataJSON(); writes.push({ path, data, method: request.method(), key: request.headers()['idempotency-key'] });
+            if (path === '/platform/plans') {const plan={uuid:'plan-fixture',...data,limits:{users:Number(data.users),ai_requests_per_month:Number(data.ai_requests_per_month)}};platformPlans.push(plan);return fulfill({data:plan},201);}
+            if (path === '/platform/subscriptions') {const sub={uuid:'subscription-fixture',company:platformTenants[0].name,plan:platformPlans[0].name,state:'scheduled',...data};platformSubscriptions.push(sub);return fulfill({data:sub},201);}
             if (path === '/platform/tenants') {const tenant={uuid:'new-platform-company',name:data.name,slug:data.slug,status:'active',users_count:1};platformTenants.unshift(tenant);return fulfill({data:tenant},201);}
             if (path === '/advisor/sales/coverage') {coverageConfirmed=true;return fulfill({data:{uuid:'coverage-1'}},201);}
             if (path === '/advisor/data/reconciliations') {
@@ -563,5 +568,31 @@ test('platform owner creates tenant accounts without exposing tenant workspace',
     const write=state.writes.find(x=>x.path==='/platform/tenants');
     expect(write.data.owner_email).toBe('owner@example.test');
     expect(write.key).toBeTruthy();
+    expect(state.errors).toEqual([]);
+});
+
+
+test('platform owner creates plans and schedules a company subscription from the calendar',async({page})=>{
+    const state=await fixture(page,{platformOwner:true});
+    await page.getByRole('button',{name:'الاشتراكات والتقويم',exact:true}).click();
+    await page.getByRole('button',{name:'إضافة خطة',exact:true}).click();
+    const dialog=page.getByRole('dialog');
+    for(const [label,value] of [['اسم الخطة','خطة الأعمال'],['رمز الخطة بالإنجليزية','business'],['سعر الاشتراك','25.50'],['حد المستخدمين','20'],['طلبات الذكاء الاصطناعي شهريًا','500']])await dialog.getByLabel(label).fill(value);
+    await dialog.getByRole('button',{name:'حفظ',exact:true}).click();await expect(dialog).toHaveCount(0);
+    await expect(page.getByRole('table',{name:'الخطط المتاحة'}).getByText('خطة الأعمال',{exact:true})).toBeVisible();
+    await page.getByRole('button',{name:'الشهر التالي',exact:true}).click();
+    const firstDate=page.getByRole('button',{name:/تفعيل اشتراك يبدأ/}).first();
+    const label=await firstDate.getAttribute('aria-label');await firstDate.click();
+    const start=label.split(' ').at(-1);
+    await expect(dialog.getByLabel('تاريخ البداية')).toHaveValue(start);
+    await choose(page,dialog.getByRole('combobox',{name:'الشركة',exact:true}),'platform-company');
+    await choose(page,dialog.getByRole('combobox',{name:'خطة الاشتراك',exact:true}),'plan-fixture');
+    await dialog.getByLabel('آخر يوم في الاشتراك').fill(start.slice(0,8)+'28');
+    await dialog.getByLabel('سبب التفعيل أو مرجع الاتفاق').fill('اتفاق اشتراك الشركة');
+    await dialog.getByRole('button',{name:'حفظ',exact:true}).click();await expect(dialog).toHaveCount(0);
+    await expect(page.getByRole('table',{name:'اشتراكات الشهر'}).getByText('مجدول',{exact:true})).toBeVisible();
+    expect(state.writes.find(x=>x.path==='/platform/plans').data.unit_amount).toBe(2550);
+    expect(state.writes.find(x=>x.path==='/platform/subscriptions').data.starts_on).toBe(start);
+    expect(state.writes.find(x=>x.path==='/platform/subscriptions').key).toBeTruthy();
     expect(state.errors).toEqual([]);
 });

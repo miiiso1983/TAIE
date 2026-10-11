@@ -34,6 +34,7 @@ use App\Modules\HR\Http\Controllers\OnboardingController;
 use App\Modules\HR\Http\Controllers\PayrollController;
 use App\Modules\HR\Http\Controllers\PositionController;
 use App\Modules\Integrations\Http\Controllers\IntegrationController;
+use App\Modules\Platform\Http\Controllers\SubscriptionController;
 use App\Modules\Platform\Http\Controllers\TenantController;
 use App\Modules\Sales\Http\Controllers\CRMController;
 use App\Modules\Sales\Http\Controllers\CustomerController;
@@ -60,6 +61,10 @@ Route::middleware(['throttle:api', 'auth:sanctum'])->get('/platform/context', fu
 Route::middleware(['throttle:api', 'auth:sanctum', RequirePlatformOwner::class])->prefix('platform')->group(function () {
     Route::get('/tenants', [TenantController::class, 'index']);
     Route::post('/tenants', [TenantController::class, 'store']);
+    Route::get('/plans', [SubscriptionController::class, 'plans']);
+    Route::post('/plans', [SubscriptionController::class, 'createPlan']);
+    Route::get('/subscriptions', [SubscriptionController::class, 'index']);
+    Route::post('/subscriptions', [SubscriptionController::class, 'store']);
 });
 
 Route::middleware(['throttle:api', 'auth:sanctum', 'tenant.resolve', 'tenant.membership', 'tenant.active', 'billing.access'])->group(function () {

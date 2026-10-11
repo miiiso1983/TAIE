@@ -13,7 +13,13 @@ class TenantController
 {
     public function index(Request $request)
     {
-        return response()->json(Tenant::query()->withCount('users')->orderByDesc('id')->paginate(25)->through(fn ($tenant) => $this->present($tenant)));
+        $data = $request->validate(['search' => 'nullable|string|max:255']);
+        $query = Tenant::query()->withCount('users');
+        if (! empty($data['search'])) {
+            $query->where(fn ($q) => $q->where('name', 'like', '%'.$data['search'].'%')->orWhere('slug', 'like', '%'.$data['search'].'%'));
+        }
+
+        return response()->json($query->orderByDesc('id')->paginate(25)->through(fn ($tenant) => $this->present($tenant)));
     }
 
     public function store(Request $request, TenantProvisioner $provisioner)

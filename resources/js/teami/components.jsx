@@ -132,11 +132,11 @@ export function Pager({ meta, setPage }) {
     if (!meta) return null;
     return <div className="pagination"><span className="caption">صفحة {meta.current_page} من {meta.last_page}{meta.total !== undefined && ` · ${meta.total} سجل`}</span><div className="actions"><Button disabled={meta.current_page <= 1} onClick={() => setPage(meta.current_page - 1)}>السابق</Button><Button disabled={meta.current_page >= meta.last_page} onClick={() => setPage(meta.current_page + 1)}>التالي</Button></div></div>;
 }
-export function FormDialog({ title, fields, initial = {}, save, onClose, onSaved, success, description }) {
+export function FormDialog({ title, fields, initial = {}, save, onClose, onSaved, success, description, deriveValues }) {
     const [values, setValues] = useState(() => Object.fromEntries(fields.map(f => [f.name, initial[f.name] ?? f.default ?? ''])));
     const [busy, setBusy] = useState(false), [error, setError] = useState('');
     const inFlight = useRef(false), lastAttempt = useRef({ signature: '', key: '' });
-    const change = (field, value) => setValues(previous => ({ ...previous, [field.name]: value, ...Object.fromEntries((field.clearOnChange ?? []).map(name => [name, ''])) }));
+    const change = (field, value) => setValues(previous => { const next = { ...previous, [field.name]: value, ...Object.fromEntries((field.clearOnChange ?? []).map(name => [name, ''])) }; return deriveValues ? deriveValues(next, field.name) : next; });
     async function submit(event) {
         event.preventDefault();
         if (inFlight.current) return;

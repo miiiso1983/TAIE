@@ -1,16 +1,20 @@
 import React, { useState } from 'react';
 import { Button } from '@fluentui/react-components';
+import { PlatformSubscriptions } from './PlatformSubscriptions';
 import { Brand } from './Brand';
 import { api } from './api';
 import { FormDialog, Notice, PageHeading, Pager, QueryState, RecordTable, SectionCard, useQuery } from './components';
 
 export function PlatformWorkspace({ context, themeMode, toggleTheme, logout }) {
+    const [tab, setTab] = useState('companies');
     const [page, setPage] = useState(1), [creating, setCreating] = useState(false), [created, setCreated] = useState(null);
     const query = useQuery(`/platform/tenants?page=${page}`);
     return <div className="platform-shell">
         <a className="skip-link" href="#main-content">الانتقال إلى المحتوى</a>
         <header className="topbar"><Brand small /><strong>إدارة المنصة</strong><div className="actions"><span className="platform-account">{context.user?.name}</span><Button onClick={toggleTheme}>{themeMode === 'dark' ? 'الوضع الفاتح' : 'الوضع الداكن'}</Button><Button onClick={logout}>تسجيل الخروج</Button></div></header>
         <main id="main-content" className="content stack" tabIndex={-1}>
+            <div className="actions"><Button appearance={tab==='companies'?'primary':'secondary'} onClick={()=>setTab('companies')}>الشركات</Button><Button appearance={tab==='subscriptions'?'primary':'secondary'} onClick={()=>setTab('subscriptions')}>الاشتراكات والتقويم</Button></div>
+            {tab==='subscriptions'?<><PageHeading title="إدارة اشتراكات الشركات" description="إدارة الخطط ومواعيد التفعيل والتجديد من تقويم واحد."/><PlatformSubscriptions/></>:<>
             <PageHeading title="شركات المستأجرين" description="أنت في لوحة مالك الموقع. أنشئ شركة مستقلة وحساب مالكها، ثم سلّم بيانات الدخول للشخص المسؤول عنها." />
             <Notice>لكل شركة مستخدموها وبياناتها المعزولة. مالك الشركة يدير شركته؛ إنشاء شركات جديدة متاح لمالك المنصة فقط.</Notice>
             {created && <Notice intent="success">تم إنشاء {created.name}. معرّف الشركة للدخول: <bdi>{created.uuid}</bdi>. يدخل مالكها بالبريد وكلمة المرور اللذين حددتهما. تهيئة الاشتراك مستقلة عن إنشاء الحساب.</Notice>}
@@ -29,6 +33,7 @@ export function PlatformWorkspace({ context, themeMode, toggleTheme, logout }) {
                 {name:'password',label:'كلمة المرور الأولية',type:'password',required:true,maxLength:128,hint:'12 محرفًا على الأقل مع أحرف كبيرة وصغيرة ورقم ورمز'},
                 {name:'password_confirmation',label:'تأكيد كلمة المرور',type:'password',required:true,maxLength:128},
             ]} save={async (data,key)=>{const r=await api('/platform/tenants',{method:'POST',data,key});setCreated(r.data);return r;}} onClose={()=>setCreating(false)} onSaved={()=>{setCreating(false);query.refresh();}} />}
+            </>}
         </main>
     </div>;
 }
