@@ -187,7 +187,7 @@ class PublicTrialTest extends TestCase
         $this->register(['preferred_plan_uuid' => $trial->uuid])->assertUnprocessable();
         $plan = BillingPlan::query()->create(['uuid' => Str::uuid(), 'code' => 'public-interest', 'name' => 'Public interest', 'currency' => 'USD', 'unit_amount' => 1000, 'interval' => 'month', 'is_public' => true]);
         $this->register(['preferred_plan_uuid' => $plan->uuid])->assertCreated();
-        $this->assertSame($plan->uuid, CompanyTrialRegistration::query()->firstOrFail()->profile_encrypted['preferred_plan_uuid']);
+        $this->assertSame((string) $plan->uuid, CompanyTrialRegistration::query()->firstOrFail()->profile_encrypted['preferred_plan_uuid']);
         $this->assertDatabaseHas('tenant_subscriptions', ['billing_plan_id' => $trial->id, 'status' => 'trialing']);
         $this->assertDatabaseCount('billing_invoices', 0);
     }
