@@ -470,7 +470,7 @@ test('coverage confirmation requires an explicit source match and preserves mino
     await page.getByRole('button',{name:'عرض التحليل',exact:true}).click();
     await page.getByRole('button',{name:'مطابقة المصدر وتأكيد التغطية'}).click();
     const dialog=page.getByRole('dialog');
-    for (const [label,value] of [['عدد الفواتير بالمصدر','1'],['عدد التحصيلات بالمصدر','2'],['عدد المرتجعات بالمصدر','0'],['المبيعات بوحدات العملة الصغيرة','10000'],['المرتجعات بوحدات العملة الصغيرة','0'],['التحصيل بوحدات العملة الصغيرة','5000'],['المصدر ونطاق المطابقة وسبب اكتمال البيانات','تمت مطابقة كشف المصدر المستقل لجميع الفواتير المختارة.']]) await dialog.getByLabel(label,{exact:true}).fill(value);
+    for (const [label,value] of [['عدد الفواتير بالمصدر','1'],['عدد التحصيلات بالمصدر','2'],['عدد المرتجعات بالمصدر','0'],['المبيعات بوحدات العملة الصغيرة','10000'],['المرتجعات بوحدات العملة الصغيرة','0'],['التحصيل بوحدات العملة الصغيرة','5000'],['المصدر ونطاق المطابقة وسبب اكتمال البيانات','تمت مطابقة كشف المصدر المستقل لجميع الفواتير المختارة.']]) await dialog.getByLabel(label).fill(value);
     await dialog.getByLabel('إقرار المراجع').fill('طابقت');
     await page.getByRole('option',{name:'طابقت المصدر لهذه الفترة والعملة وأؤكد التغطية'}).click();
     await dialog.getByRole('button',{name:'حفظ',exact:true}).click();
