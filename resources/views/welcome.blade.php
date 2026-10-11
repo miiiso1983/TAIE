@@ -4,10 +4,13 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="csrf-token" content="{{ csrf_token() }}">
-    <meta name="theme-color" content="#421d24">
-    <title>Teami | مساحة العمل</title>
+    <meta name="theme-color" content="#3700B3">
+    <title>TAIE | مساحة العمل</title>
     @viteReactRefresh
     @vite('resources/js/app.jsx')
+    <link rel="icon" type="image/svg+xml" href="/brand/taie-icon.svg">
+    <link rel="preload" href="/fonts/IBMPlexSansArabic-Regular.ttf" as="font" type="font/ttf" crossorigin>
+    <link rel="preload" href="/fonts/IBMPlexSansArabic-SemiBold.ttf" as="font" type="font/ttf" crossorigin>
 </head>
 <body>
     <div id="teami-root"></div>

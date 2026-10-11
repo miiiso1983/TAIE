@@ -1,3 +1,4 @@
+import {Brand, BrandBlocks} from './Brand';
 import { CompanyRules } from './CompanyRules';
 import { SourceControl } from './SourceControl';
 import { AdvisorSetup } from './AdvisorSetup';
@@ -25,34 +26,36 @@ import { FormDialog, Notice } from './components';
 import { Employees, Leave } from './HR';
 import { Customers, Home, Knowledge } from './Pages';
 
-// Editorial palette: wine actions, lilac selected surfaces, violet text links.
 import { Administration, Operations, AccountSecurity, BillingWorkspace as Billing, PayrollWorkspace as Payroll, OpportunityWorkspace as Opportunities } from './Launch';
-
-const editorialBrand = {
-    10: '#170A0D', 20: '#241015', 30: '#30151B', 40: '#381920',
-    50: '#421D24', 60: '#542832', 70: '#66333F', 80: '#79414E',
-    90: '#8C5260', 100: '#A06977', 110: '#B5828F', 120: '#C89CA6',
-    130: '#DAB6BE', 140: '#E7CFD4', 150: '#F1E4E7', 160: '#FAF4F5',
+// TAIE identity: indigo and night lead; violet actions, sky accents, AI spark reserved for AI.
+const taieBrand = {
+ 10:'#080014',20:'#14003A',30:'#210063',40:'#2C008B',50:'#3700B3',60:'#4600CB',70:'#5400DC',80:'#6200EE',
+ 90:'#7534F1',100:'#8852F4',110:'#9B70F6',120:'#AE8CF8',130:'#C1A9FA',140:'#D4C6FC',150:'#E7E1FD',160:'#F6F3FF',
 };
-const flatShadows = { shadow2: 'none', shadow4: 'none', shadow8: 'none', shadow16: 'none' };
+const shared = {borderRadiusSmall:'6px',borderRadiusMedium:'8px',borderRadiusLarge:'12px',borderRadiusXLarge:'16px',shadow2:'none',shadow4:'none',shadow8:'0 8px 28px rgba(20,0,58,.12)',shadow16:'0 16px 48px rgba(20,0,58,.18)'};
 const lightTheme = {
-    ...createLightTheme(editorialBrand), ...flatShadows,
-    colorNeutralBackground1: '#FFFFFF', colorNeutralBackground2: '#F2F0EB', colorNeutralBackground3: '#EAE7E1',
-    colorNeutralForeground1: '#292827', colorNeutralForeground2: '#494542', colorNeutralForeground3: '#666666',
-    colorNeutralStroke1: '#C9C4BC', colorNeutralStroke2: '#E3E3E2',
-    colorBrandBackground: '#421D24', colorBrandBackgroundHover: '#542832', colorBrandBackgroundPressed: '#30151B',
-    colorBrandBackground2: '#EDE7FA', colorBrandBackground2Hover: '#E2D8F5', colorBrandBackground2Pressed: '#D4C7FF',
-    colorBrandForeground1: '#421D24', colorBrandForeground2: '#421D24', colorBrandStroke1: '#421D24', colorBrandStroke2: '#D4C7FF',
-    colorNeutralForegroundOnBrand: '#FFFFFF', colorCompoundBrandBackground: '#421D24', colorCompoundBrandBackgroundHover: '#542832', colorCompoundBrandBackgroundPressed: '#30151B',
+ ...createLightTheme(taieBrand),...shared,
+ colorNeutralBackground1:'#FFFFFF',colorNeutralBackground2:'#F6F5FB',colorNeutralBackground3:'#EEEBF6',
+ colorNeutralForeground1:'#14003A',colorNeutralForeground2:'#4C4266',colorNeutralForeground3:'#696178',
+ colorNeutralStroke1:'#B7AEC9',colorNeutralStroke2:'#E6E6E6',
+ colorBrandBackground:'#6200EE',colorBrandBackgroundHover:'#5000C7',colorBrandBackgroundPressed:'#3700B3',
+ colorBrandBackground2:'#EEE8FF',colorBrandBackground2Hover:'#E5D9FF',colorBrandBackground2Pressed:'#D4C6FC',
+ colorBrandForeground1:'#3700B3',colorBrandForeground2:'#3700B3',colorBrandForegroundLink:'#6200EE',colorBrandForegroundLinkHover:'#3700B3',
+ colorBrandStroke1:'#6200EE',colorBrandStroke2:'#C1A9FA',colorNeutralForegroundOnBrand:'#FFFFFF',
+ colorCompoundBrandBackground:'#6200EE',colorCompoundBrandBackgroundHover:'#5000C7',colorCompoundBrandBackgroundPressed:'#3700B3',
+ colorCompoundBrandForeground1:'#6200EE',colorCompoundBrandForeground1Hover:'#3700B3',
 };
 const darkTheme = {
-    ...createDarkTheme(editorialBrand), ...flatShadows,
-    colorNeutralBackground1: '#302B2C', colorNeutralBackground2: '#242021', colorNeutralBackground3: '#3B3436',
-    colorNeutralForeground1: '#F2F0EB', colorNeutralForeground2: '#DDD6D0', colorNeutralForeground3: '#BFB5AE',
-    colorNeutralStroke1: '#716465', colorNeutralStroke2: '#51474A',
-    colorBrandBackground: '#421D24', colorBrandBackgroundHover: '#542832', colorBrandBackgroundPressed: '#30151B',
-    colorBrandBackground2: '#45394E', colorBrandForeground1: '#E9DBE0', colorBrandForeground2: '#E9DBE0', colorBrandStroke2: '#695576',
-    colorNeutralForegroundOnBrand: '#FFFFFF', colorCompoundBrandBackground: '#421D24',
+ ...createDarkTheme(taieBrand),...shared,
+ colorNeutralBackground1:'#211045',colorNeutralBackground2:'#14003A',colorNeutralBackground3:'#2B1851',
+ colorNeutralForeground1:'#FFFFFF',colorNeutralForeground2:'#E0D9ED',colorNeutralForeground3:'#B8AECF',
+ colorNeutralStroke1:'#80719E',colorNeutralStroke2:'#46365F',
+ colorBrandBackground:'#6200EE',colorBrandBackgroundHover:'#7534F1',colorBrandBackgroundPressed:'#5000C7',
+ colorBrandBackground2:'#33205C',colorBrandBackground2Hover:'#46306F',colorBrandBackground2Pressed:'#513978',
+ colorBrandForeground1:'#54BBFC',colorBrandForeground2:'#D4C6FC',colorBrandForegroundLink:'#54BBFC',colorBrandForegroundLinkHover:'#9DD8FF',
+ colorBrandStroke1:'#AE8CF8',colorBrandStroke2:'#80719E',colorNeutralForegroundOnBrand:'#FFFFFF',
+ colorCompoundBrandBackground:'#6200EE',colorCompoundBrandBackgroundHover:'#7534F1',colorCompoundBrandBackgroundPressed:'#5000C7',
+ colorCompoundBrandForeground1:'#C1A9FA',colorCompoundBrandForeground1Hover:'#D4C6FC',
 };
 
 const navigation = [
@@ -78,9 +81,6 @@ const navigation = [
     { key: 'billing', label: 'الخطة والاستخدام', icon: Payment24Regular, group: 'الإدارة', permissions: ['billing.subscription.read', 'billing.usage.read'] },
 ];
 const currentPage = () => navigation.some(x => x.key === location.hash.slice(1)) ? location.hash.slice(1) : 'home';
-function Brand({ small = false }) {
-    return <div className={`brand ${small ? 'small' : ''}`}><span className="brand-symbol" aria-hidden="true">T</span><div><strong>Teami</strong><span>AI Enterprise</span></div></div>;
-}
 function Login({ onAuthenticated }) {
     const [values, setValues] = useState({ tenant: localStorage.getItem('teami_tenant') || '', email: '', password: '', mfa_code: '' });
     const [busy, setBusy] = useState(false), [error, setError] = useState(''), [mfa, setMfa] = useState(false);
@@ -97,8 +97,8 @@ function Login({ onAuthenticated }) {
         } catch (error) { setError(error.message); } finally { setBusy(false); }
     }
     const set = key => (_, data) => setValues(x => ({ ...x, [key]: data.value }));
-    return <><div className="login-layout"><section className="login-story"><Brand /><div className="login-story-copy"><Badge appearance="tint" color="brand">مساحة عمل لفريقك</Badge><h1>كل فريقك.<br /><span>في مساحة واحدة.</span></h1><p>موارد بشرية، علاقات عملاء ومعرفة الشركة.<br />تجربة عمل أوضح تبدأ من هنا.</p><div className="story-capabilities">{[[People24Regular, 'الموارد البشرية', 'وظائف، إجازات ورواتب'], [TargetArrow24Regular, 'إدارة المبيعات', 'عملاء وفرص تجارية'], [Sparkle24Regular, 'معرفة الشركة', 'مساعد يعتمد على مستنداتك']].map(([Icon, title, text]) => <div className="story-capability" key={title}><span><Icon /></span><div><strong>{title}</strong><small>{text}</small></div></div>)}</div></div><div className="login-assurance"><ShieldCheckmark24Regular />مساحة مستقلة لكل شركة، وصلاحيات لكل دور.</div></section>
-        <section className="login-form-side"><form className="login-form" onSubmit={login}><div className="mobile-brand"><Brand /></div><span className="eyebrow">أهلاً بعودتك</span><h2>تسجيل الدخول</h2><p className="muted">ادخل إلى مساحة شركتك في Teami.</p><div className="stack login-fields"><Field label="معرّف الشركة" required><Input name="tenant" value={values.tenant} onChange={set('tenant')} autoComplete="organization" placeholder="مثال: teami" required disabled={busy} /></Field><Field label="البريد الإلكتروني" required><Input name="email" type="email" value={values.email} onChange={set('email')} autoComplete="username" placeholder="name@company.com" required disabled={busy} /></Field><Field label="كلمة المرور" required><Input name="password" type="password" value={values.password} onChange={set('password')} autoComplete="current-password" required disabled={busy} /></Field>{mfa && <Field label="رمز المصادقة الثنائية" required><Input name="mfa_code" value={values.mfa_code} onChange={set('mfa_code')} autoComplete="one-time-code" required disabled={busy} autoFocus /></Field>}{error && <Notice intent={mfa ? 'info' : 'error'}>{error}</Notice>}<Button appearance="primary" size="large" type="submit" disabled={busy} icon={busy ? <Spinner size="tiny" /> : <ArrowLeft24Regular />} iconPosition="after">{busy ? 'جارٍ التحقق…' : 'تسجيل الدخول'}</Button></div><Button appearance="subtle" type="button" onClick={() => setRecovery('forgot')}>نسيت كلمة المرور؟</Button><p className="login-footnote"><ShieldCheckmark24Regular />الوصول حسب عضويتك وصلاحياتك في الشركة.</p></form></section>
+    return <><div className="login-layout"><section className="login-story"><Brand /><BrandBlocks/><div className="login-story-copy"><Badge appearance="tint" color="brand">مساحة عمل لفريقك</Badge><h1>ذكاء يقرّب فريقك.<br /><span>وقرارات أوضح لشركتك.</span></h1><p>موارد بشرية، علاقات عملاء ومعرفة الشركة.<br />تجربة عمل أوضح تبدأ من هنا.</p><div className="story-capabilities">{[[People24Regular, 'الموارد البشرية', 'وظائف، إجازات ورواتب'], [TargetArrow24Regular, 'إدارة المبيعات', 'عملاء وفرص تجارية'], [Sparkle24Regular, 'معرفة الشركة', 'مساعد يعتمد على مستنداتك']].map(([Icon, title, text]) => <div className="story-capability" key={title}><span><Icon /></span><div><strong>{title}</strong><small>{text}</small></div></div>)}</div></div><div className="login-assurance"><ShieldCheckmark24Regular />مساحة مستقلة لكل شركة، وصلاحيات لكل دور.</div></section>
+        <section className="login-form-side"><form className="login-form" onSubmit={login}><div className="mobile-brand"><Brand /></div><span className="eyebrow">أهلاً بعودتك</span><h2>تسجيل الدخول</h2><p className="muted">ادخل إلى مساحة شركتك في TAIE.</p><div className="stack login-fields"><Field label="معرّف الشركة" required><Input name="tenant" value={values.tenant} onChange={set('tenant')} autoComplete="organization" placeholder="مثال: teami" required disabled={busy} /></Field><Field label="البريد الإلكتروني" required><Input name="email" type="email" value={values.email} onChange={set('email')} autoComplete="username" placeholder="name@company.com" required disabled={busy} /></Field><Field label="كلمة المرور" required><Input name="password" type="password" value={values.password} onChange={set('password')} autoComplete="current-password" required disabled={busy} /></Field>{mfa && <Field label="رمز المصادقة الثنائية" required><Input name="mfa_code" value={values.mfa_code} onChange={set('mfa_code')} autoComplete="one-time-code" required disabled={busy} autoFocus /></Field>}{error && <Notice intent={mfa ? 'info' : 'error'}>{error}</Notice>}<Button appearance="primary" size="large" type="submit" disabled={busy} icon={busy ? <Spinner size="tiny" /> : <ArrowLeft24Regular />} iconPosition="after">{busy ? 'جارٍ التحقق…' : 'تسجيل الدخول'}</Button></div><Button appearance="subtle" type="button" onClick={() => setRecovery('forgot')}>نسيت كلمة المرور؟</Button><p className="login-footnote"><ShieldCheckmark24Regular />الوصول حسب عضويتك وصلاحياتك في الشركة.</p></form></section>
     </div>{recovery && <FormDialog title={recovery === 'reset' ? 'إعادة تعيين كلمة المرور' : 'استعادة الحساب'} initial={{ email: new URLSearchParams(location.search).get('email') ?? '' }} fields={[
         { name:'email',label:'البريد الإلكتروني',type:'email',required:true },
         ...(recovery==='reset'?[{name:'password',label:'كلمة المرور الجديدة',type:'password',required:true},{name:'password_confirmation',label:'تأكيد كلمة المرور',type:'password',required:true}]:[]),
@@ -138,7 +138,7 @@ export default function App() {
     useEffect(() => { const expired = () => { clearSession(); setContext(null); setBootError(''); }; window.addEventListener('teami:unauthorized', expired); return () => window.removeEventListener('teami:unauthorized', expired); }, []);
     async function logout() { try { await api('/auth/logout', { method: 'POST' }); } catch { /* Local logout remains available if the server cannot be reached. */ } clearSession(); setContext(null); setBootError(''); location.hash = ''; }
     const toggleTheme = () => setThemeMode(mode => { const next = mode === 'dark' ? 'light' : 'dark'; localStorage.setItem('teami_theme', next); return next; });
-    const theme = { ...(themeMode === 'dark' ? darkTheme : lightTheme), fontFamilyBase: '"Almarai", Inter, "Segoe UI", sans-serif' };
+    const theme = { ...(themeMode === 'dark' ? darkTheme : lightTheme), fontFamilyBase: '"IBM Plex Sans Arabic", "IBM Plex Sans", "Segoe UI", sans-serif', fontFamilyNumeric: '"IBM Plex Sans", sans-serif' };
     return <FluentProvider theme={theme} dir="rtl" className="teami-provider" data-theme={themeMode}>
         {booting ? <div className="boot-screen"><Brand /><Spinner label="جارٍ فتح مساحة العمل…" /></div> : bootError ? <div className="boot-screen"><Brand /><Notice intent="error">{bootError}</Notice><div className="actions"><Button appearance="primary" onClick={() => setAttempt(x => x + 1)}>إعادة المحاولة</Button><Button onClick={logout}>تسجيل الخروج</Button></div></div> : context ? <Workspace context={context} themeMode={themeMode} toggleTheme={toggleTheme} logout={logout} /> : <Login onAuthenticated={() => setAttempt(x => x + 1)} />}
     </FluentProvider>;
