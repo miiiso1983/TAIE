@@ -66,4 +66,14 @@ class LoginCompanySelectionTest extends TestCase
             ->assertStatus(202)->assertJsonPath('error.code', 'MFA_REQUIRED');
         $this->assertDatabaseCount('personal_access_tokens', 0);
     }
+
+    public function test_email_spacing_and_case_do_not_bypass_login_rate_limits(): void
+    {
+        $this->account();
+        foreach (['login@example.com', 'LOGIN@example.com', ' login@example.com', 'login@example.com ', ' LOGIN@example.com '] as $email) {
+            $this->postJson('/api/auth/login', ['email' => $email, 'password' => 'wrong'])->assertUnauthorized();
+        }
+        $this->postJson('/api/auth/login', ['email' => '  login@example.com  ', 'password' => 'wrong'])->assertStatus(429);
+        $this->assertDatabaseCount('personal_access_tokens', 0);
+    }
 }
