@@ -10,7 +10,7 @@ function PublicHeader({ authenticated = false }) {
     return <header className="public-header"><a href="/welcome" aria-label="TAIE — الصفحة الرئيسية"><Brand small /></a><nav aria-label="التنقل في الموقع"><a href="/welcome#features">المميزات</a><a href="/welcome#how">كيف يعمل؟</a><a href="/welcome#plans">الخطط</a></nav><a className="public-login" href={authenticated?'/app':'/login'}>{authenticated?'مساحة العمل':'تسجيل الدخول'}<ArrowLeft24Regular /></a></header>;
 }
 function PublicFooter() {
-    return <footer className="public-footer"><Brand small /><span>Teami AI Enterprise · مساحة عمل لشركتك</span><a href="/privacy">الخصوصية وشروط التجربة</a></footer>;
+    return <footer className="public-footer"><Brand small /><span>Teami AI Enterprise · مساحة عمل لشركتك</span><a href="https://wa.me/9647710509440" target="_blank" rel="noopener noreferrer">للاستفسار راسل على الواتساب <bdi>+٩٦٤٧٧١٠٥٠٩٤٤٠</bdi></a><a href="/privacy">الخصوصية وشروط التجربة</a></footer>;
 }
 const features = [
     [People24Regular,'فريق منظم، وعمل أوضح','ملفات الموظفين، الإجازات، الحضور، الأداء والرواتب في مساحة واحدة، بصلاحيات حسب الدور.','الموارد البشرية'],
