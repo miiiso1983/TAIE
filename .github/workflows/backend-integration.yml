@@ -60,7 +60,7 @@ jobs:
       - name: Install Composer dependencies
         run: composer install --no-interaction --prefer-dist --no-progress
       - name: Prepare test environment file
-        run: cp .env.example .env
+        run: touch .env
       - name: Run migrations
         run: php artisan migrate:fresh --force
       - name: Run test suite on MySQL and Redis
@@ -86,7 +86,7 @@ jobs:
           coverage: none
       - run: composer install --no-interaction --prefer-dist --no-progress
       - name: Prepare test environment file
-        run: cp .env.example .env
+        run: touch .env
       - run: php artisan test
 
   frontend:
