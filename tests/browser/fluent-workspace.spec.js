@@ -6,12 +6,15 @@ const ids = {
     leave: '55555555-5555-4555-8555-555555555555', customer: '66666666-6666-4666-8666-666666666666',
 };
 const allPermissions = ['hr.employee.read', 'hr.employee.create', 'hr.employee.update', 'hr.department.read', 'hr.position.read', 'hr.leave.read', 'hr.leave.create', 'hr.leave.manage', 'hr.leave.approve', 'hr.payroll.read', 'data.sensitive.read', 'sales.customer.read', 'sales.customer.create', 'sales.opportunity.read', 'ai.knowledge.read', 'ai.ask', 'billing.subscription.read', 'billing.usage.read'];
-async function fixture(page, { signedIn = true, permissions = allPermissions, mfa = false, failUpdateOnce = false, platformOwner = false } = {}) {
+async function fixture(page, { signedIn = true, permissions = allPermissions, mfa = false, failUpdateOnce = false, platformOwner = false, publicTrial = false, failSignupOnce = false } = {}) {
     const writes = [], errors = [];
     const department = { uuid: ids.department, name: 'المبيعات' }, position = { uuid: ids.position, title: 'مدير المبيعات', department };
     const employee = { uuid: ids.employee, employee_number: 'EMP-1', first_name: 'موظف', last_name: 'تجريبي', work_email: 'employee@example.test', employment_status: 'active', employment_type: 'full_time', hired_at: '2026-01-01', department, position };
     const employees = [employee], customers = [{ uuid: ids.customer, customer_number: 'C-1', name: 'شركة الاختبار', type: 'organization', status: 'active', country_code: 'IQ', email: 'contact@example.test' }];
     let leaves = [];
+    const publicPlans=[{uuid:'77777777-7777-4777-8777-777777777777',name:'خطة الأعمال',currency:'USD',unit_amount:2500,interval:'month',limits:{users:10,ai_requests_per_month:100},is_public:true}];
+    const publicCatalog={plans:publicPlans,activities:[{value:'general',label:'عام'},{value:'technology',label:'البرمجيات والتكنولوجيا'}],countries:[{value:'IQ',label:'العراق'},{value:'SA',label:'السعودية'}],company_sizes:[{value:'1-5',label:'1–5 موظفين'},{value:'6-20',label:'6–20 موظفًا'}],trial:{days:4,ai_requests_total:25,users:5},registration_enabled:true,ai_available:false};
+    let trialCreated=false;
     const platformPlans = [], platformSubscriptions = [];
     const platformTenants = [{uuid:'platform-company',name:'شركة منصة تجريبية',slug:'fixture-company',status:'active',users_count:1}];
     const type = { uuid: ids.type, code: 'ANNUAL', name: 'سنوية', status: 'active', requires_approval: true, annual_allowance_days: '20.00' };
@@ -39,12 +42,14 @@ async function fixture(page, { signedIn = true, permissions = allPermissions, mf
             const x={uuid:'reconciliation-1',method:'record_matching',source_system:'primary',from:'2026-09-01',to:'2026-09-30',as_of:'2026-10-06',currency:'USD',status:'mismatched',current_status:'mismatched',evidence_reference:'Independent-Report',review_note:'راجعت تقرير المصدر المستقل',snapshot:{expected:actual,actual,record_counts:{matched:0,missing_in_teami:0,unexpected_in_teami:0,changed_fields:1},differences:{invoices:{count:0,amount_minor:'0'},receipts:{count:0,amount_minor:'0'},returns:{count:0,amount_minor:'0'}}},current:{readiness:{invoices_without_area:0,invoices_without_lines:0,invoices_with_line_difference:0}}};
             reconciliationRows.push(x);return fulfill({data:x},201);
         }
+        if (path === '/public/catalog') return fulfill({data:publicCatalog});
         if (path === '/platform/context') return fulfill({data:{platform_owner:platformOwner,user:{name:'مالك المنصة',email:'platform@example.test'}}});
         if (path === '/platform/plans' && request.method() === 'GET') return fulfill({data:platformPlans});
         if (path === '/platform/subscriptions' && request.method() === 'GET') return fulfill({data:platformSubscriptions,current_page:1,last_page:1,total:platformSubscriptions.length});
         if (path === '/platform/tenants' && request.method() === 'GET') return fulfill({data:platformTenants,current_page:1,last_page:1,total:platformTenants.length});
         if (request.method() !== 'GET') {
             const data = request.postDataJSON(); writes.push({ path, data, method: request.method(), key: request.headers()['idempotency-key'] });
+            if (path === '/public/trials') {if(failSignupOnce){failSignupOnce=false;return fulfill({message:'تعذّر الاتصال مؤقتًا'},503);}trialCreated=true;return fulfill({data:{tenant:{uuid:'99999999-9999-4999-8999-999999999999',slug:'trial-fixture',name:data.name},trial:{starts_at:new Date().toISOString(),ends_at:new Date(Date.now()+4*86400000).toISOString(),ai_requests_total:25,users:5}}},201);}
             if (path === '/platform/plans') {const plan={uuid:'plan-fixture',...data,limits:{users:Number(data.users),ai_requests_per_month:Number(data.ai_requests_per_month)}};platformPlans.push(plan);return fulfill({data:plan},201);}
             if (path === '/platform/subscriptions') {const sub={uuid:'subscription-fixture',company:platformTenants[0].name,plan:platformPlans[0].name,state:'scheduled',...data};platformSubscriptions.push(sub);return fulfill({data:sub},201);}
             if (path === '/platform/tenants') {const tenant={uuid:'new-platform-company',name:data.name,slug:data.slug,status:'active',users_count:1};platformTenants.unshift(tenant);return fulfill({data:tenant},201);}
@@ -136,6 +141,7 @@ async function fixture(page, { signedIn = true, permissions = allPermissions, mf
         if (path === '/identity/permissions') return fulfill({data: permissions.map(name => ({name}))});
         if (path === '/billing/invoices') return fulfill({data:{data:[{uuid:'invoice',number:'TM-TEST',plan_name:'Launch',currency:'USD',amount_minor:2500,period_start:'2026-10-01',period_end:'2026-11-01',status:'open'}],current_page:1,last_page:1}});
         if (path === '/billing/payments') return fulfill(paginated([]));
+        if (path === '/billing/trial') return fulfill({data:trialCreated||publicTrial?{state:'active',ends_at:new Date(Date.now()+4*86400000).toISOString(),remaining:25,used:0,limit:25,ai_available:false}:null});
         if (path === '/billing/subscription') return fulfill({ data: null });
         if (path === '/billing/usage') return fulfill({ data: { totals: { 'ai.tokens': 120 } } });
         return fulfill({ message: 'Unexpected fixture route: ' + path }, 404);
@@ -143,7 +149,7 @@ async function fixture(page, { signedIn = true, permissions = allPermissions, mf
     if (signedIn) await page.addInitScript(() => {
         localStorage.setItem('teami_token', 'fixture-token'); localStorage.setItem('teami_tenant', 'teami'); localStorage.setItem('teami_user', JSON.stringify({ name: 'مدير الاختبار', email: 'manager@example.test' }));
     });
-    await page.goto('/');
+    await page.goto(signedIn?'/':'/login');
     return { writes, errors };
 }
 async function choose(page, control, value) {
@@ -595,4 +601,66 @@ test('platform owner creates plans and schedules a company subscription from the
     expect(state.writes.find(x=>x.path==='/platform/subscriptions').data.starts_on).toBe(start);
     expect(state.writes.find(x=>x.path==='/platform/subscriptions').key).toBeTruthy();
     expect(state.errors).toEqual([]);
+});
+
+
+test('Public landing explains features, published plans and trial on desktop and mobile',async({page})=>{
+    const state=await fixture(page,{signedIn:false});await page.goto('/');
+    await expect(page.getByRole('heading',{name:'شركتك أوضح. فريقك أقرب.',exact:true})).toBeVisible();
+    await expect(page.getByRole('heading',{name:'خطة الأعمال',exact:true})).toBeVisible();
+    await expect(page.locator('.public-trial-plan')).toContainText('٢٥ طلب ذكاء اصطناعي إجمالًا');
+    await expect(page.locator('.public-availability')).toContainText('قيد التجهيز');
+    await page.evaluate(()=>document.fonts.ready);
+    await page.screenshot({path:'test-results/public-site/landing-desktop.png',fullPage:true,animations:'disabled'});
+    await page.setViewportSize({width:390,height:844});
+    expect(await page.evaluate(()=>document.documentElement.scrollWidth<=window.innerWidth)).toBeTruthy();
+    await page.screenshot({path:'test-results/public-site/landing-mobile.png',fullPage:true,animations:'disabled'});
+    await page.evaluate(()=>localStorage.setItem('teami_theme','dark'));await page.reload();
+    await page.screenshot({path:'test-results/public-site/landing-mobile-dark.png',fullPage:true,animations:'disabled'});
+    await page.getByText('هل يلزم إدخال بطاقة دفع؟',{exact:true}).click();
+    await expect(page.getByText('لا. لا يجمع التسجيل بيانات بطاقات الدفع، ولا تتحول التجربة تلقائيًا إلى اشتراك مدفوع.',{exact:true})).toBeVisible();
+    await page.getByRole('link',{name:'جرّب قبل الاشتراك',exact:true}).click();
+    await expect(page).toHaveURL(/register\?plan=/);
+    await expect(page.getByRole('heading',{name:'عرّفنا بشركتك',exact:true})).toBeVisible();
+    expect(state.errors).toEqual([]);
+});
+
+async function fillPublicRegistration(page) {
+    await page.getByLabel('اسم الشركة',{exact:false}).fill('شركة تجربة');
+    await page.getByLabel('الاسم القانوني للشركة').fill('شركة تجربة القانونية');
+    await choose(page,page.getByRole('combobox',{name:'نشاط الشركة',exact:true}),'technology');
+    await choose(page,page.getByRole('combobox',{name:'حجم الفريق',exact:true}),'6-20');
+    await page.getByLabel('المدينة').fill('بغداد');await page.getByLabel('عنوان الشركة').fill('بغداد — عنوان تجريبي 123');
+    await page.getByRole('button',{name:'متابعة',exact:true}).click();
+    for(const [label,value] of [['الاسم الكامل للمسؤول','مسؤول الشركة'],['المسمى الوظيفي','المدير'],['بريد المسؤول','trial@example.test'],['رقم الهاتف الدولي','+9647701234567'],['كلمة المرور','Fixture-Password42!'],['تأكيد كلمة المرور','Fixture-Password42!']])await (label==='كلمة المرور'?page.locator('input[name=password]'):page.getByLabel(label,{exact:false})).fill(value);
+    await page.getByRole('button',{name:'متابعة',exact:true}).click();
+}
+
+test('Self registration reviews company details, retries safely and enters a bounded trial',async({page})=>{
+    const state=await fixture(page,{signedIn:false,failSignupOnce:true});await page.goto('/register?plan=77777777-7777-4777-8777-777777777777');
+    await page.evaluate(()=>document.fonts.ready);await page.screenshot({path:'test-results/public-site/registration-desktop.png',fullPage:true,animations:'disabled'});
+    await fillPublicRegistration(page);
+    await expect(page.getByRole('button',{name:'إنشاء الحساب وبدء التجربة',exact:true})).toBeDisabled();
+    await expect(page.locator('.registration-review')).toContainText('trial@example.test');
+    await expect(page.getByRole('combobox',{name:'خطة مهتم بها بعد التجربة — اختياري',exact:true})).toHaveValue(/خطة الأعمال/);
+    await page.getByRole('checkbox',{name:/أؤكد صحة المعلومات/}).check();
+    await page.screenshot({path:'test-results/public-site/registration-review.png',fullPage:true,animations:'disabled'});
+    await page.getByRole('button',{name:'إنشاء الحساب وبدء التجربة',exact:true}).click();await expect(page.getByText('تعذّر الاتصال مؤقتًا',{exact:true})).toBeVisible();
+    await page.getByRole('button',{name:'إنشاء الحساب وبدء التجربة',exact:true}).click();
+    await expect(page).toHaveURL(/\/app$/);await expect(page.getByRole('heading',{name:'أهلاً مدير',exact:true})).toBeVisible();
+    await expect(page.getByRole('complementary',{name:'حالة التجربة المجانية'})).toContainText('25 من 25');
+    const writes=state.writes.filter(x=>x.path==='/public/trials');expect(writes).toHaveLength(2);expect(writes[0].key).toBe(writes[1].key);
+    expect(writes[1].data.consent).toBe(true);expect(writes[1].data.business_activity).toBe('technology');expect(writes[1].data.preferred_plan_uuid).toBe('77777777-7777-4777-8777-777777777777');
+    expect(await page.evaluate(()=>localStorage.getItem('teami_tenant'))).toBe('99999999-9999-4999-8999-999999999999');expect(state.errors).toEqual([]);
+});
+
+test('Public registration and privacy work on mobile without overflow',async({page})=>{
+    const state=await fixture(page,{signedIn:false});await page.setViewportSize({width:390,height:844});await page.goto('/register');
+    await expect(page.getByRole('heading',{name:'عرّفنا بشركتك',exact:true})).toBeVisible();
+    await page.screenshot({path:'test-results/public-site/registration-mobile.png',fullPage:true,animations:'disabled'});
+    expect(await page.evaluate(()=>document.documentElement.scrollWidth<=window.innerWidth)).toBeTruthy();
+    await fillPublicRegistration(page);await page.getByRole('button',{name:'رجوع',exact:true}).click();
+    await expect(page.getByLabel('الاسم الكامل للمسؤول')).toHaveValue('مسؤول الشركة');
+    await page.goto('/privacy');await expect(page.getByRole('heading',{name:'الخصوصية وشروط التجربة',exact:true})).toBeVisible();
+    expect(await page.evaluate(()=>document.documentElement.scrollWidth<=window.innerWidth)).toBeTruthy();expect(state.errors).toEqual([]);
 });

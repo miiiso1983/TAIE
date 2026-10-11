@@ -23,6 +23,7 @@ export async function api(path, { method = 'GET', data, key, signal, authenticat
         if (authenticated && response.status === 401) window.dispatchEvent(new Event('teami:unauthorized'));
         throw error;
     }
+    if (method === 'POST' && (path === '/ai/ask' || /^\/advisor\/reports\/[^/]+\/explain$/.test(path))) window.dispatchEvent(new Event('teami:ai-usage-changed'));
     return body;
 }
 

@@ -15,7 +15,7 @@ class ExampleTest extends TestCase
         $response = $this->withoutVite()->get('/');
 
         $response->assertOk()
-            ->assertSee('مساحة العمل')
+            ->assertSee('شركتك أوضح. فريقك أقرب.')
             ->assertSee('id="teami-root"', false)
             ->assertSee('lang="ar" dir="rtl"', false)
             ->assertSee('name="csrf-token"', false);

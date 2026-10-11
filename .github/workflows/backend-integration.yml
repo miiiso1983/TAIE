@@ -111,3 +111,11 @@ jobs:
           npm run test:ui
         env:
           TEAMI_UI_START_SERVER: '1'
+
+      - name: Save public page previews
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: public-site-previews
+          path: test-results/public-site/
+          if-no-files-found: ignore

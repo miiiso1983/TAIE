@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Button } from '@fluentui/react-components';
-import { api } from './api';
+import { api, requestKey } from './api';
 import { money } from './Launch';
 import { FormDialog, Notice, Pager, QueryState, RecordTable, SectionCard, useQuery } from './components';
 
@@ -16,15 +16,18 @@ const dateKey = (year, month, day) => `${year}-${String(month + 1).padStart(2, '
 
 export function PlatformSubscriptions() {
     const [month, setMonth] = useState(baghdadToday().slice(0, 7)), [page, setPage] = useState(1);
+    const [publishing,setPublishing]=useState(null),[publishError,setPublishError]=useState('');
     const [dialog, setDialog] = useState(null), [success, setSuccess] = useState('');
     const subscriptions = useQuery(`/platform/subscriptions?month=${month}&page=${page}`), plans = useQuery('/platform/plans');
     const rows = subscriptions.data?.data ?? [], [year, index] = month.split('-').map(Number), monthIndex = index - 1;
     const shift = direction => { const date = new Date(Date.UTC(year, monthIndex + direction, 1)); setMonth(dateKey(date.getUTCFullYear(), date.getUTCMonth(), 1).slice(0, 7)); setPage(1); };
     const monthTitle = new Intl.DateTimeFormat('ar-IQ', { year: 'numeric', month: 'long', timeZone: 'UTC' }).format(new Date(Date.UTC(year, monthIndex, 1)));
     const closeSaved = () => { setDialog(null); setSuccess('تم حفظ الاشتراك؛ يبدأ التفعيل وينتهي تلقائيًا حسب التواريخ المحددة.'); subscriptions.refresh(); };
+    async function publish(plan) {if(publishing)return;setPublishing(plan.uuid);setPublishError('');try{await api(`/platform/plans/${plan.uuid}/publication`,{method:'PATCH',data:{is_public:!plan.is_public},key:requestKey()});plans.refresh();setSuccess(plan.is_public?'تم إخفاء الخطة عن الزوار.':'تم نشر الخطة في الصفحة التعريفية.');}catch(e){setPublishError(e.message);}finally{setPublishing(null);}}
     const planOptions = (plans.data?.data ?? []).map(p => ({ value: p.uuid, label: `${p.name} — ${money(p.unit_amount,p.currency)} — ${p.limits?.users ?? 0} مستخدم` }));
     return <div className="stack">
         <Notice>حدد الشركة والخطة ثم مدة الاشتراك. يبدأ التفعيل عند بداية اليوم المحدد وينتهي بعد آخر يوم، بتوقيت بغداد. التفعيل اليدوي قرار إداري مسجل ولا يسجل فاتورة مدفوعة.</Notice>
+        {publishError&&<Notice intent="error">{publishError}</Notice>}
         {success && <Notice intent="success">{success}</Notice>}
         <SectionCard title="تقويم اشتراكات الشركات" action={<div className="actions"><Button onClick={() => setDialog({ kind: 'plan' })}>إضافة خطة</Button><Button appearance="primary" onClick={() => setDialog({ kind: 'subscription', starts_on: baghdadToday() })}>تفعيل اشتراك</Button></div>}>
             <div className="actions subscription-month"><Button onClick={() => shift(-1)} aria-label="الشهر السابق">السابق</Button><strong aria-live="polite">{monthTitle}</strong><Button onClick={() => shift(1)} aria-label="الشهر التالي">التالي</Button><Button onClick={() => {setMonth(baghdadToday().slice(0,7));setPage(1);}}>الشهر الحالي</Button></div>
@@ -49,6 +52,7 @@ export function PlatformSubscriptions() {
         <SectionCard title="خطط الاشتراك"><QueryState query={plans}><RecordTable caption="الخطط المتاحة" rows={plans.data?.data??[]} columns={[
             {key:'name',label:'الخطة'},{key:'interval',label:'دورة الفوترة',render:x=>x.interval==='year'?'سنوية':'شهرية'},
             {key:'unit_amount',label:'السعر',render:x=>money(x.unit_amount,x.currency)},
+            {key:'is_public',label:'العرض للزوار',render:x=><div className="actions"><span>{x.is_public?'منشورة':'داخلية'}</span><Button size="small" disabled={!!publishing} aria-label={`${x.is_public?'إخفاء':'نشر'} ${x.name}`} onClick={()=>publish(x)}>{x.is_public?'إخفاء':'نشر'}</Button></div>},
             {key:'users',label:'حد المستخدمين',render:x=>x.limits?.users},
             {key:'ai',label:'طلبات الذكاء شهريًا',render:x=>x.limits?.ai_requests_per_month},
         ]}/></QueryState></SectionCard>
@@ -63,6 +67,7 @@ export function PlatformSubscriptions() {
             {name:'name',label:'اسم الخطة',required:true,maxLength:120}, {name:'code',label:'رمز الخطة بالإنجليزية',required:true,maxLength:40,hint:'أحرف صغيرة وأرقام وشرطة أو شرطة سفلية'},
             {name:'currency',label:'العملة',required:true,options:[{value:'USD',label:'دولار أمريكي'},{value:'IQD',label:'دينار عراقي'}],default:'USD'},
             {name:'price',label:'سعر الاشتراك',required:true,hint:'مثال: 25.00 دولار أو 25000 دينار. استخدم النقطة للفاصلة العشرية.'},
+            {name:'is_public',label:'عرض الخطة في الصفحة التعريفية',boolean:true,default:'true',required:true,options:[{value:'true',label:'منشورة للزوار'},{value:'false',label:'خطة داخلية'}]},
             {name:'interval',label:'دورة الفوترة',required:true,default:'month',options:[{value:'month',label:'شهرية'},{value:'year',label:'سنوية'}]},
             {name:'users',label:'حد المستخدمين',type:'number',required:true,min:1,step:1},
             {name:'ai_requests_per_month',label:'طلبات الذكاء الاصطناعي شهريًا',type:'number',required:true,min:0,step:1},
