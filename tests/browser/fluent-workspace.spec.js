@@ -639,7 +639,9 @@ async function fillPublicRegistration(page) {
 test('Self registration reviews company details, retries safely and enters a bounded trial',async({page})=>{
     const state=await fixture(page,{signedIn:false,failSignupOnce:true});await page.goto('/register?plan=77777777-7777-4777-8777-777777777777');
     await page.evaluate(()=>document.fonts.ready);await page.screenshot({path:'test-results/public-site/registration-desktop.png',fullPage:true,animations:'disabled'});
+    const storyWidth=await page.locator('.registration-story').evaluate(x=>x.getBoundingClientRect().width);
     await fillPublicRegistration(page);
+    expect(await page.locator('.registration-story').evaluate(x=>x.getBoundingClientRect().width)).toBeCloseTo(storyWidth,0);
     await expect(page.getByRole('button',{name:'إنشاء الحساب وبدء التجربة',exact:true})).toBeDisabled();
     await expect(page.locator('.registration-review')).toContainText('trial@example.test');
     await expect(page.getByRole('combobox',{name:'خطة مهتم بها بعد التجربة — اختياري',exact:true})).toHaveValue(/خطة الأعمال/);
@@ -659,7 +661,7 @@ test('Public registration and privacy work on mobile without overflow',async({pa
     await expect(page.getByRole('heading',{name:'عرّفنا بشركتك',exact:true})).toBeVisible();
     await page.screenshot({path:'test-results/public-site/registration-mobile.png',fullPage:true,animations:'disabled'});
     expect(await page.evaluate(()=>document.documentElement.scrollWidth<=window.innerWidth)).toBeTruthy();
-    await fillPublicRegistration(page);await page.getByRole('button',{name:'رجوع',exact:true}).click();
+    await fillPublicRegistration(page);expect(await page.evaluate(()=>document.documentElement.scrollWidth<=window.innerWidth)).toBeTruthy();await page.screenshot({path:'test-results/public-site/registration-review-mobile.png',fullPage:true,animations:'disabled'});await page.getByRole('button',{name:'رجوع',exact:true}).click();
     await expect(page.getByLabel('الاسم الكامل للمسؤول')).toHaveValue('مسؤول الشركة');
     await page.goto('/privacy');await expect(page.getByRole('heading',{name:'الخصوصية وشروط التجربة',exact:true})).toBeVisible();
     expect(await page.evaluate(()=>document.documentElement.scrollWidth<=window.innerWidth)).toBeTruthy();expect(state.errors).toEqual([]);
