@@ -20,7 +20,7 @@ class SubscriptionController
 
     public function plans()
     {
-        return response()->json(['data' => BillingPlan::query()->where('is_active', true)->orderBy('name')->get()]);
+        return response()->json(['data' => BillingPlan::query()->where('is_active', true)->whereIn('interval', ['month', 'year'])->orderBy('name')->get()]);
     }
 
     public function createPlan(Request $request)
@@ -29,7 +29,7 @@ class SubscriptionController
             'code' => 'required|string|max:40|regex:/^[a-z0-9_-]+$/',
             'name' => 'required|string|max:120', 'currency' => ['required', Rule::in(['USD', 'IQD'])],
             'unit_amount' => 'required|integer|min:1|max:1000000000000',
-            'interval' => ['required', Rule::in(['month', 'year'])],
+            'interval' => ['required', Rule::in(['month', 'year'])], 'is_public' => 'sometimes|boolean',
             'users' => 'required|integer|min:1|max:100000',
             'ai_requests_per_month' => 'required|integer|min:0|max:1000000',
         ]);
@@ -40,9 +40,24 @@ class SubscriptionController
                 'uuid' => (string) Str::uuid(), 'code' => $data['code'], 'name' => $data['name'],
                 'currency' => $data['currency'], 'unit_amount' => $data['unit_amount'], 'interval' => $data['interval'],
                 'limits' => ['users' => (int) $data['users'], 'ai_requests_per_month' => (int) $data['ai_requests_per_month']],
-                'is_active' => true,
+                'is_active' => true, 'is_public' => $data['is_public'] ?? true,
             ]);
             app(AuditTrailService::class)->record('platform.plan.created', ['module' => 'platform', 'entity_type' => 'plan', 'entity_id' => $plan->uuid, 'new_values' => $plan->toArray()]);
+
+            return $plan->toArray();
+        });
+    }
+
+    public function publication(Request $request, string $uuid)
+    {
+        $data = ['uuid' => $uuid, ...$request->validate(['is_public' => 'required|boolean'])];
+
+        return $this->once($request, 'publication', $data, function () use ($data) {
+            $plan = BillingPlan::query()->where('uuid', $data['uuid'])->whereIn('interval', ['month', 'year'])->lockForUpdate()->firstOrFail();
+            if ($plan->is_public !== (bool) $data['is_public']) {
+                $plan->update(['is_public' => $data['is_public']]);
+                app(AuditTrailService::class)->record('platform.plan.publication_changed', ['module' => 'platform', 'entity_type' => 'plan', 'entity_id' => $plan->uuid, 'new_values' => ['is_public' => $plan->is_public]]);
+            }
 
             return $plan->toArray();
         });
@@ -76,7 +91,7 @@ class SubscriptionController
             $tenant = Tenant::query()->where('uuid', $data['tenant_uuid'])->lockForUpdate()->firstOrFail();
             abort_unless($tenant->status === 'active', 409, 'لا يمكن تفعيل اشتراك لشركة غير نشطة.');
             $plan = BillingPlan::query()->where('uuid', $data['plan_uuid'])->lockForUpdate()->firstOrFail();
-            abort_unless($plan->is_active, 409, 'الخطة غير متاحة.');
+            abort_unless($plan->is_active && in_array($plan->interval, ['month', 'year']), 409, 'الخطة غير متاحة.');
             abort_if($tenant->users()->wherePivot('status', 'active')->count() > ($plan->limits['users'] ?? 0), 409, 'عدد المستخدمين الحالي يتجاوز حد الخطة.');
             $start = CarbonImmutable::parse($data['starts_on'], self::TIMEZONE)->startOfDay()->utc();
             $end = CarbonImmutable::parse($data['ends_on'], self::TIMEZONE)->startOfDay()->addDay()->utc();

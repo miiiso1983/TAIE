@@ -61,6 +61,6 @@ return Application::configure(basePath: dirname(__DIR__))
             };
             $message = $status >= 500 ? 'An unexpected error occurred.' : $e->getMessage();
 
-            return response()->json(['success' => false, 'error' => ['code' => $code, 'message' => $message], 'request_id' => $request->attributes->get('request_id')], $status, ['X-Request-ID' => $request->attributes->get('request_id')]);
+            return response()->json(['success' => false, 'error' => ['code' => $code, 'message' => $message, ...($e instanceof ValidationException ? ['details' => $e->errors()] : [])], 'request_id' => $request->attributes->get('request_id')], $status, ['X-Request-ID' => $request->attributes->get('request_id')]);
         });
     })->create();

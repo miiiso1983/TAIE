@@ -127,7 +127,7 @@ class PlatformSubscriptionsTest extends TestCase
         $r = $this->postJson('/api/platform/plans', $data, $key)->assertCreated()->assertJsonPath('data.limits.users', 10);
         $this->postJson('/api/platform/plans', $data, $key)->assertOk()->assertJsonPath('data.uuid', $r->json('data.uuid'));
         $this->postJson('/api/platform/plans', array_replace($data, ['users' => 0]), ['Idempotency-Key' => Str::uuid()])->assertUnprocessable();
-        $this->assertDatabaseCount('billing_plans', 2);
+        $this->assertDatabaseCount('billing_plans', 3);
         $this->assertTrue(app(AuditTrailService::class)->verifyChain(null));
     }
 }

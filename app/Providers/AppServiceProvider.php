@@ -44,6 +44,7 @@ class AppServiceProvider extends ServiceProvider
         });
         RateLimiter::for('imports', fn (Request $request) => Limit::perMinute(10)->by(($request->user()?->getAuthIdentifier() ?? $request->ip()).':'.($request->header('X-Tenant') ?? '')));
         RateLimiter::for('api', fn ($request) => Limit::perMinute(120)->by($request->user()?->getAuthIdentifier() ?: $request->ip()));
+        RateLimiter::for('public-trial', fn (Request $request) => [Limit::perHour(3)->by('trial:ip:'.$request->ip()), Limit::perDay(10)->by('trial:daily:'.$request->ip()), Limit::perDay(50)->by('trial:global')]);
         RateLimiter::for('login', fn ($request) => Limit::perMinute(5)->by(strtolower((string) $request->input('email')).'|'.$request->ip()));
         RateLimiter::for('mfa', fn ($request) => Limit::perMinute(5)->by($request->user()?->getAuthIdentifier() ?: $request->ip()));
         RateLimiter::for('password-reset', fn ($request) => Limit::perMinute(5)->by(strtolower((string) $request->input('email')).'|'.$request->ip()));

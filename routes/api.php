@@ -34,6 +34,7 @@ use App\Modules\HR\Http\Controllers\OnboardingController;
 use App\Modules\HR\Http\Controllers\PayrollController;
 use App\Modules\HR\Http\Controllers\PositionController;
 use App\Modules\Integrations\Http\Controllers\IntegrationController;
+use App\Modules\Platform\Http\Controllers\PublicTrialController;
 use App\Modules\Platform\Http\Controllers\SubscriptionController;
 use App\Modules\Platform\Http\Controllers\TenantController;
 use App\Modules\Sales\Http\Controllers\CRMController;
@@ -45,6 +46,9 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Facades\Schema;
+
+Route::middleware('throttle:api')->get('/public/catalog', [PublicTrialController::class, 'catalog']);
+Route::middleware(['throttle:api', 'throttle:public-trial'])->post('/public/trials', [PublicTrialController::class, 'store']);
 
 Route::middleware(['throttle:api', 'throttle:login'])->post('/auth/login', [AuthController::class, 'login']);
 Route::middleware(['throttle:api', 'throttle:password-reset'])->group(function () {
@@ -60,9 +64,11 @@ Route::middleware(['throttle:api', 'auth:sanctum'])->get('/platform/context', fu
 });
 Route::middleware(['throttle:api', 'auth:sanctum', RequirePlatformOwner::class])->prefix('platform')->group(function () {
     Route::get('/tenants', [TenantController::class, 'index']);
+    Route::get('/tenants/{uuid}/registration', [PublicTrialController::class, 'registration']);
     Route::post('/tenants', [TenantController::class, 'store']);
     Route::get('/plans', [SubscriptionController::class, 'plans']);
     Route::post('/plans', [SubscriptionController::class, 'createPlan']);
+    Route::patch('/plans/{uuid}/publication', [SubscriptionController::class, 'publication']);
     Route::get('/subscriptions', [SubscriptionController::class, 'index']);
     Route::post('/subscriptions', [SubscriptionController::class, 'store']);
 });
@@ -174,6 +180,7 @@ Route::middleware(['throttle:api', 'auth:sanctum', 'tenant.resolve', 'tenant.mem
     Route::post('/billing/invoices/{uuid}/payments', [ManualBillingController::class, 'report'])->middleware(['permission:billing.payment.report', 'idempotency']);
     Route::post('/billing/payments/{uuid}/decision', [ManualBillingController::class, 'decide'])->middleware(['permission:platform.billing.manage', 'idempotency']);
     Route::post('/billing/invoices/{uuid}/void', [ManualBillingController::class, 'void'])->middleware(['permission:platform.billing.manage', 'idempotency']);
+    Route::get('/billing/trial', [BillingController::class, 'trial'])->middleware('permission:billing.subscription.read');
     Route::get('/billing/subscription', [BillingController::class, 'subscription'])->middleware('permission:billing.subscription.read');
     Route::get('/billing/usage', [BillingController::class, 'usage'])->middleware('permission:billing.usage.read');
     Route::post('/billing/usage', [BillingController::class, 'recordUsage'])->middleware(['permission:billing.usage.write', 'idempotency']);

@@ -17,6 +17,22 @@ class BillingController extends Controller
         return response()->json(['data' => $subscription ? ['uuid' => $subscription->uuid, 'status' => $subscription->status, 'starts_at' => $subscription->starts_at?->toISOString(), 'ends_at' => $subscription->ends_at?->toISOString(), 'trial_ends_at' => $subscription->trial_ends_at?->toISOString(), 'plan' => ['code' => $subscription->plan->code, 'name' => $subscription->plan->name, 'currency' => $subscription->plan->currency, 'unit_amount' => $subscription->plan->unit_amount, 'interval' => $subscription->plan->interval, 'limits' => $subscription->plan->limits]] : null]);
     }
 
+    public function trial(BillingService $billing)
+    {
+        $subscription = $billing->currentSubscription();
+        if (! $subscription || $subscription->external_provider !== 'public_trial') {
+            return response()->json(['data' => null]);
+        }
+        $used = (int) UsageRecord::query()->where('metric', 'ai.requests')->where('occurred_at', '>=', $subscription->starts_at)->where('occurred_at', '<', $subscription->trial_ends_at)->sum('quantity');
+        $expired = ! $subscription->trial_ends_at || $subscription->trial_ends_at->lessThanOrEqualTo(now());
+
+        return response()->json(['data' => [
+            'state' => $expired ? 'expired' : ($used >= 25 ? 'limit_reached' : 'active'),
+            'ends_at' => $subscription->trial_ends_at?->toISOString(), 'used' => $used, 'remaining' => max(0, 25 - $used), 'limit' => 25,
+            'ai_available' => filled(config('teami_ai.api_key')) && str_starts_with((string) config('teami_ai.endpoint'), 'https://'),
+        ]]);
+    }
+
     public function usage(Request $request, TenantContext $context)
     {
         $data = $request->validate(['from' => ['nullable', 'date'], 'to' => ['nullable', 'date', 'after_or_equal:from'], 'metric' => ['nullable', 'string', 'max:100']]);

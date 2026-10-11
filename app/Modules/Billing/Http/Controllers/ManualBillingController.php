@@ -21,7 +21,7 @@ class ManualBillingController extends Controller
 {
     public function plans()
     {
-        return response()->json(['data' => BillingPlan::query()->where('is_active', true)->get(['uuid', 'code', 'name', 'currency', 'unit_amount', 'interval', 'limits'])]);
+        return response()->json(['data' => BillingPlan::query()->where('is_active', true)->whereIn('interval', ['month', 'year'])->get(['uuid', 'code', 'name', 'currency', 'unit_amount', 'interval', 'limits'])]);
     }
 
     public function invoices()
@@ -52,7 +52,7 @@ class ManualBillingController extends Controller
         $d = $r->validate(['plan_uuid' => ['required', 'uuid'], 'starts_at' => ['required', 'date'], 'due_at' => ['required', 'date']]);
         $invoice = DB::transaction(function () use ($d, $context, $audit, $outbox) {
             Tenant::query()->whereKey($context->getTenantId())->lockForUpdate()->firstOrFail();
-            $plan = BillingPlan::query()->where('uuid', $d['plan_uuid'])->where('is_active', true)->firstOrFail();
+            $plan = BillingPlan::query()->where('uuid', $d['plan_uuid'])->where('is_active', true)->whereIn('interval', ['month', 'year'])->firstOrFail();
             $start = CarbonImmutable::parse($d['starts_at'])->startOfDay();
             $end = $plan->interval === 'year' ? $start->addYearNoOverflow() : $start->addMonthNoOverflow();
             abort_if(TenantSubscription::query()->whereIn('status', ['pending', 'active', 'trialing'])->where('starts_at', '<', $end)->where(fn ($q) => $q->whereNull('ends_at')->orWhere('ends_at', '>', $start))->exists(), 409, 'Subscription periods cannot overlap.');
@@ -120,7 +120,7 @@ class ManualBillingController extends Controller
             abort_if(BillingPayment::query()->where('invoice_id', $i->id)->where('status', 'pending')->exists(), 409, 'Review the pending transfer report first.');
             $i->update(['status' => 'void']);
             TenantSubscription::query()->whereKey($i->subscription_id)->update(['status' => 'canceled']);
-            $audit->record('billing.invoice.voided',['module' => 'billing', 'entity_type' => 'invoice', 'entity_id' => $i->uuid]);
+            $audit->record('billing.invoice.voided', ['module' => 'billing', 'entity_type' => 'invoice', 'entity_id' => $i->uuid]);
         });
 
         return response()->json(['data' => ['uuid' => $uuid, 'status' => 'void']]);

@@ -10,6 +10,6 @@ class BillingPlan extends Model
 
     protected function casts(): array
     {
-        return ['unit_amount' => 'integer', 'limits' => 'array', 'is_active' => 'boolean'];
+        return ['unit_amount' => 'integer', 'limits' => 'array', 'is_active' => 'boolean', 'is_public' => 'boolean'];
     }
 }
