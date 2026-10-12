@@ -6,13 +6,13 @@ const ids = {
     leave: '55555555-5555-4555-8555-555555555555', customer: '66666666-6666-4666-8666-666666666666',
 };
 const allPermissions = ['hr.employee.read', 'hr.employee.create', 'hr.employee.update', 'hr.department.read', 'hr.position.read', 'hr.leave.read', 'hr.leave.create', 'hr.leave.manage', 'hr.leave.approve', 'hr.payroll.read', 'data.sensitive.read', 'sales.customer.read', 'sales.customer.create', 'sales.opportunity.read', 'ai.knowledge.read', 'ai.ask', 'billing.subscription.read', 'billing.usage.read'];
-async function fixture(page, { signedIn = true, permissions = allPermissions, mfa = false, failUpdateOnce = false, platformOwner = false, publicTrial = false, failSignupOnce = false } = {}) {
+async function fixture(page, { signedIn = true, permissions = allPermissions, mfa = false, failUpdateOnce = false, platformOwner = false, publicTrial = false, failSignupOnce = false, pricingPlans = null } = {}) {
     const writes = [], errors = [];
     const department = { uuid: ids.department, name: 'المبيعات' }, position = { uuid: ids.position, title: 'مدير المبيعات', department };
     const employee = { uuid: ids.employee, employee_number: 'EMP-1', first_name: 'موظف', last_name: 'تجريبي', work_email: 'employee@example.test', employment_status: 'active', employment_type: 'full_time', hired_at: '2026-01-01', department, position };
     const employees = [employee], customers = [{ uuid: ids.customer, customer_number: 'C-1', name: 'شركة الاختبار', type: 'organization', status: 'active', country_code: 'IQ', email: 'contact@example.test' }];
     let leaves = [];
-    const publicPlans=[{uuid:'77777777-7777-4777-8777-777777777777',name:'خطة الأعمال',currency:'USD',unit_amount:2500,interval:'month',limits:{users:10,ai_requests_per_month:100},is_public:true}];
+    const publicPlans=pricingPlans ?? [{uuid:'77777777-7777-4777-8777-777777777777',name:'خطة الأعمال',currency:'USD',unit_amount:2500,interval:'month',limits:{users:10,ai_requests_per_month:100},is_public:true}];
     const publicCatalog={plans:publicPlans,activities:[{value:'general',label:'عام'},{value:'technology',label:'البرمجيات والتكنولوجيا'}],countries:[{value:'IQ',label:'العراق'},{value:'SA',label:'السعودية'}],company_sizes:[{value:'1-5',label:'1–5 موظفين'},{value:'6-20',label:'6–20 موظفًا'}],trial:{days:4,ai_requests_total:25,users:5},registration_enabled:true,ai_available:false};
     let trialCreated=false;
     const platformPlans = [], platformSubscriptions = [];
@@ -685,4 +685,30 @@ test('first-use guidance follows permissions, survives navigation and can reopen
     await page.getByRole('menuitem', { name: 'دليل البداية', exact: true }).click();
     await expect(guide).toBeVisible();
     expect(errors).toEqual([]);
+});
+
+
+test('IQD pricing shows agreed limits and keeps signup on the free trial', async ({ page }) => {
+    const plans = [
+        { uuid: '11111111-1111-4111-8111-111111111110', name: 'البداية', unit_amount: 99000000, limits: { users: 3, ai_requests_per_month: 200 } },
+        { uuid: '22222222-2222-4222-8222-222222222220', name: 'الأعمال', unit_amount: 199000000, limits: { users: 10, ai_requests_per_month: 750 } },
+        { uuid: '33333333-3333-4333-8333-333333333330', name: 'النمو', unit_amount: 299000000, limits: { users: 25, ai_requests_per_month: 2000 } },
+    ].map(plan => ({ ...plan, currency: 'IQD', interval: 'month' }));
+    const state = await fixture(page, { signedIn: false, pricingPlans: plans });
+    for (const plan of plans) {
+        const card = page.getByRole('article', { name: `خطة ${plan.name}`, exact: true });
+        await expect(card).toContainText(new Intl.NumberFormat('ar-IQ').format(plan.unit_amount / 1000) + ' دينار');
+        await expect(card).toContainText(new Intl.NumberFormat('ar-IQ').format(plan.limits.ai_requests_per_month) + ' طلب AI شهريًا للشركة');
+    }
+    await expect(page.locator('.public-featured-plan')).toContainText('موصى بها لفريقك');
+    await expect(page.getByRole('link', { name: 'اطلب عرض سعر' })).toHaveAttribute('href', /^https:\/\/wa.me\/9647710509440/);
+    await page.setViewportSize({ width: 390, height: 844 });
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBeTruthy();
+    await page.screenshot({ path: 'test-results/public-site/pricing-mobile.png', fullPage: true, animations: 'disabled' });
+    await page.setViewportSize({ width: 1440, height: 1000 });
+    await page.screenshot({ path: 'test-results/public-site/pricing-desktop.png', fullPage: true, animations: 'disabled' });
+    await page.getByRole('article', { name: 'خطة الأعمال', exact: true }).getByRole('link', { name: 'جرّب قبل الاشتراك' }).click();
+    await expect(page).toHaveURL(new RegExp('plan=' + plans[1].uuid));
+    await expect(page.locator('.registration-offer')).toContainText('٢٥ طلبًا إجمالًا');
+    expect(state.errors).toEqual([]);
 });
