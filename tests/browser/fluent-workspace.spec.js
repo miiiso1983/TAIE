@@ -695,6 +695,7 @@ test('IQD pricing shows agreed limits and keeps signup on the free trial', async
         { uuid: '33333333-3333-4333-8333-333333333330', name: 'النمو', unit_amount: 299000000, limits: { users: 25, ai_requests_per_month: 2000 } },
     ].map(plan => ({ ...plan, currency: 'IQD', interval: 'month' }));
     const state = await fixture(page, { signedIn: false, pricingPlans: plans });
+    await page.goto('/welcome');
     for (const plan of plans) {
         const card = page.getByRole('article', { name: `خطة ${plan.name}`, exact: true });
         await expect(card).toContainText(new Intl.NumberFormat('ar-IQ').format(plan.unit_amount / 1000) + ' دينار');
