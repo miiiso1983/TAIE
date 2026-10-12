@@ -666,3 +666,23 @@ test('Public registration and privacy work on mobile without overflow',async({pa
     await page.goto('/privacy');await expect(page.getByRole('heading',{name:'الخصوصية وشروط التجربة',exact:true})).toBeVisible();
     expect(await page.evaluate(()=>document.documentElement.scrollWidth<=window.innerWidth)).toBeTruthy();expect(state.errors).toEqual([]);
 });
+
+test('first-use guidance follows permissions, survives navigation and can reopen', async ({ page }) => {
+    const { errors } = await fixture(page, { permissions: ['sales.customer.read'] });
+    await page.goto('/app');
+    const guide = page.getByLabel('دليل البداية', { exact: true });
+    await expect(guide).toBeVisible();
+    await expect(guide.getByRole('heading', { name: 'أضف العملاء وفرص البيع' })).toBeVisible();
+    await expect(guide.getByText('جهّز فريقك وصلاحياته', { exact: true })).toHaveCount(0);
+    await guide.getByRole('button', { name: 'افتح القسم' }).click();
+    await expect(page).toHaveURL(/#customers$/);
+    await guide.getByRole('button', { name: 'التالي', exact: true }).click();
+    await expect(guide.getByRole('heading', { name: 'راجع النتيجة وحدّد الخطوة التالية' })).toBeVisible();
+    await guide.getByRole('button', { name: 'إنهاء الدليل' }).click();
+    await page.reload();
+    await expect(guide).toHaveCount(0);
+    await page.getByRole('button', { name: /حسابي|مدير الاختبار/ }).click();
+    await page.getByRole('menuitem', { name: 'دليل البداية', exact: true }).click();
+    await expect(guide).toBeVisible();
+    expect(errors).toEqual([]);
+});

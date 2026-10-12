@@ -89,3 +89,10 @@ body,.teami-provider{font-family:'Almarai','Segoe UI',sans-serif;font-synthesis:
 .calendar-expiry { background:#54bbfc22; }
 .subscription-month { justify-content:center; }
 @media(max-width:600px) { .subscription-calendar { gap:2px; } .calendar-day { min-height:64px; padding:1px; } .calendar-weekday { font-size:9px; } .calendar-day button { min-width:24px; padding:4px; } .calendar-event { font-size:9px; padding:1px; } }
+
+.getting-started { margin-block-end: 24px; border-inline-start: 4px solid var(--colorBrandForeground1, #7654B5); }
+.getting-started h2 { margin-block: 8px; }
+.getting-started p { line-height: 1.8; }
+.getting-started .actions { flex-wrap: wrap; }
+.workspace-main > .content:empty { display: none; }
+.workspace-main > .content:has(.getting-started) { padding-block-end: 0; }
