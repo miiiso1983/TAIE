@@ -16,6 +16,8 @@ async function fixture(page, { signedIn = true, permissions = allPermissions, mf
     const publicCatalog={plans:publicPlans,activities:[{value:'general',label:'عام'},{value:'technology',label:'البرمجيات والتكنولوجيا'}],countries:[{value:'IQ',label:'العراق'},{value:'SA',label:'السعودية'}],company_sizes:[{value:'1-5',label:'1–5 موظفين'},{value:'6-20',label:'6–20 موظفًا'}],trial:{days:4,ai_requests_total:25,users:5},registration_enabled:true,ai_available:false};
     let trialCreated=false;
     const platformPlans = [], platformSubscriptions = [];
+    const chatMessages = [], policyDrafts = [];
+    const policyTemplates = [{key:'leave',title:'سياسة طلب الإجازات',category:'الموارد البشرية',version:'1.0',notice:'قالب إرشادي',body:'الشركة: [اسم الشركة]. الإشعار: [مدة الإشعار]. يراجع المسؤول السياسة قبل تطبيقها.',references:[]}];
     const platformTenants = [{uuid:'platform-company',name:'شركة منصة تجريبية',slug:'fixture-company',status:'active',users_count:1}];
     const type = { uuid: ids.type, code: 'ANNUAL', name: 'سنوية', status: 'active', requires_approval: true, annual_allowance_days: '20.00' };
     const types = [type];
@@ -92,7 +94,10 @@ async function fixture(page, { signedIn = true, permissions = allPermissions, mf
             if (path === '/hr/leave-types') { types.push({ ...data, uuid: 'new-type', status: 'active' }); return fulfill({ data: types.at(-1) }, 201); }
             if (path === '/hr/leave-requests') { leaves.push({ uuid: ids.leave, employee, leave_type: type, status: 'pending', ...data }); return fulfill({ data: leaves.at(-1) }, 201); }
             if (path.startsWith('/hr/leave-requests/') && path.endsWith('/decision')) { leaves[0].status = data.decision === 'approve' ? 'approved' : 'rejected'; return fulfill({ data: leaves[0] }); }
-            if (path === '/ai/ask') return fulfill({ data: { answer: 'هذه إجابة اختبار من سياسة الشركة.', citations: [{ document_uuid: 'policy', title: 'سياسة الإجازات' }] } });
+            if (path === '/ai/ask') { const answer={role:'assistant',content:'هذه إجابة اختبار من سياسة الشركة.',citations:[{document_uuid:'policy',title:'سياسة الإجازات'}]}; chatMessages.push({role:'user',content:data.question},answer); return fulfill({data:{conversation_uuid:'11111111-1111-4111-8111-111111111119',answer:answer.content,citations:answer.citations}}); }
+            if (path === '/knowledge/policy-drafts') {const item={uuid:'policy-draft',template_key:data.template_key,title:data.title,body:data.body,status:'draft'};policyDrafts.push(item);return fulfill({data:item},201);}
+            if (path === '/knowledge/policy-drafts/policy-draft') {Object.assign(policyDrafts[0],data);return fulfill({data:policyDrafts[0]});}
+            if (path === '/knowledge/policy-drafts/policy-draft/approve') {Object.assign(policyDrafts[0],{status:'approved',indexing_status:'queued'});return fulfill({data:policyDrafts[0]});}
             return fulfill({ data: {} });
         }
         if (path === '/knowledge/external-references') return fulfill({data:{activity:businessActivity,activities:[{value:'general',label:'عام'},{value:'pharma',label:'الأدوية والمكاتب العلمية'}],references:[externalReference]}});
@@ -122,6 +127,10 @@ async function fixture(page, { signedIn = true, permissions = allPermissions, mf
         if (path === '/advisor/sales/invoices') return fulfill({data:[{uuid:'invoice',external_id:'I1',source_system:'primary',invoice_date:'2026-09-01',due_date:'2026-10-01',currency:'USD',sales_minor:'10000',collected_minor:'5000',balance_minor:'5000',receipt_count:2}],meta:{total:1,current_page:1,last_page:1}});
         if (path === '/advisor/imports/schemas') return fulfill({data:[{kind:'customers',columns:['customer_number','name','email'],required:['customer_number','name']}]});
         if (path === '/advisor/imports') return fulfill({data:{data:[],current_page:1,last_page:1}});
+        if (path === '/ai/conversations') return fulfill({data:chatMessages.length?[{uuid:'11111111-1111-4111-8111-111111111119',last_message:{preview:'هذه إجابة اختبار من سياسة الشركة.'}}]:[],meta:{current_page:1,last_page:1}});
+        if (path === '/ai/conversations/11111111-1111-4111-8111-111111111119/messages') return fulfill({data:chatMessages,meta:{current_page:1,last_page:1}});
+        if (path === '/knowledge/policy-templates') return fulfill({data:policyTemplates});
+        if (path === '/knowledge/policy-drafts') return fulfill({data:{data:policyDrafts,current_page:1,last_page:1}});
         if (path === '/tenant/context') return fulfill({ data: { tenant: { name: 'Teami', uuid: 'tenant' }, user: { uuid: 'user' }, permissions } });
         const paginated = rows => ({ data: rows, meta: { total: rows.length, current_page: 1, last_page: 1 } });
         if (path === '/hr/employees') { const search = u.searchParams.get('search'), status = u.searchParams.get('status'); let rows = employees.filter(x => (!search || `${x.first_name} ${x.last_name} ${x.employee_number}`.includes(search)) && (!status || x.employment_status === status)); return fulfill(paginated(rows)); }
@@ -712,4 +721,44 @@ test('IQD pricing shows agreed limits and keeps signup on the free trial', async
     await expect(page).toHaveURL(new RegExp('plan=' + plans[1].uuid));
     await expect(page.locator('.registration-offer')).toContainText('٢٥ طلبًا إجمالًا');
     expect(state.errors).toEqual([]);
+});
+
+
+test('TAIE chat retains followups, citations and history across navigation', async ({page}) => {
+    const {writes,errors}=await fixture(page);
+    await page.goto('/#chat');
+    await page.getByLabel('رسالتك إلى TAIE').fill('ما سياسة الإجازات؟');
+    await page.getByRole('button',{name:'إرسال',exact:true}).click();
+    await expect(page.locator('.chat-assistant')).toHaveCount(1);
+    await page.getByLabel('رسالتك إلى TAIE').fill('ومتى أقدم الطلب؟');
+    await page.getByRole('button',{name:'إرسال',exact:true}).click();
+    await expect(page.locator('.chat-assistant')).toHaveCount(2);
+    expect(writes.filter(x=>x.path==='/ai/ask')[1].data.conversation_uuid).toBe('11111111-1111-4111-8111-111111111119');
+    await page.reload();
+    await page.getByLabel('سجل المحادثات').getByRole('button',{name:'هذه إجابة اختبار من سياسة الشركة.',exact:true}).click();
+    await expect(page.locator('.chat-user')).toHaveCount(2);
+    await page.locator('.chat-assistant details').first().locator('summary').click();
+    await expect(page.locator('.chat-assistant details').first()).toContainText('سياسة الإجازات');
+    await page.setViewportSize({width:390,height:844});
+    expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBeTruthy();
+    await page.screenshot({path:'test-results/public-site/chat-mobile.png',fullPage:true,animations:'disabled'});
+    expect(errors).toEqual([]);
+});
+
+test('policy templates remain drafts until explicit completed approval', async ({page}) => {
+    const {writes,errors}=await fixture(page,{permissions:[...allPermissions,'ai.knowledge.manage','identity.membership.manage']});
+    await page.goto('/#policy-library');
+    await page.getByRole('button',{name:'معاينة وتخصيص'}).click();
+    await expect(page.getByLabel('نص السياسة')).toHaveValue(/Teami/);
+    await page.getByRole('button',{name:'حفظ المسودة'}).click();
+    const approve=page.getByRole('button',{name:'اعتماد وإضافة إلى معرفة الشركة'});
+    await expect(approve).toBeDisabled();
+    await page.getByLabel('نص السياسة').fill('الشركة: Teami. راجع المسؤول سياسة طلب الإجازات والاستحقاقات وفق المتطلبات المحلية.');
+    await page.getByRole('button',{name:'حفظ المسودة'}).click();
+    await page.getByRole('checkbox',{name:/راجعت السياسة/}).check();
+    await approve.click();
+    await expect(page.getByRole('heading',{name:'سياسة معتمدة',exact:true})).toBeVisible();
+    await expect(page.getByLabel('نص السياسة')).toBeDisabled();
+    expect(writes.filter(x=>x.path.endsWith('/approve'))).toHaveLength(1);
+    expect(errors).toEqual([]);
 });

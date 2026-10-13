@@ -23,6 +23,7 @@ use App\Modules\AI\Http\Controllers\AskController;
 use App\Modules\AI\Http\Controllers\ConversationController;
 use App\Modules\AI\Http\Controllers\ExternalReferenceController;
 use App\Modules\AI\Http\Controllers\KnowledgeController;
+use App\Modules\AI\Http\Controllers\PolicyTemplateController;
 use App\Modules\Billing\Http\Controllers\BillingController;
 use App\Modules\Billing\Http\Controllers\ManualBillingController;
 use App\Modules\HR\Http\Controllers\DepartmentController;
@@ -269,6 +270,11 @@ Route::middleware(['throttle:api', 'auth:sanctum', 'tenant.resolve', 'tenant.mem
     Route::post('/knowledge/external-references/{key}/activate', [ExternalReferenceController::class, 'activate'])->middleware(['permission:ai.knowledge.manage', 'idempotency']);
     Route::post('/knowledge/external-references/{key}/disable', [ExternalReferenceController::class, 'disable'])->middleware(['permission:ai.knowledge.manage', 'idempotency']);
 
+    Route::get('/knowledge/policy-templates', [PolicyTemplateController::class, 'catalog'])->middleware('permission:ai.knowledge.read');
+    Route::get('/knowledge/policy-drafts', [PolicyTemplateController::class, 'index'])->middleware('permission:ai.knowledge.manage');
+    Route::post('/knowledge/policy-drafts', [PolicyTemplateController::class, 'store'])->middleware(['permission:ai.knowledge.manage', 'idempotency']);
+    Route::patch('/knowledge/policy-drafts/{uuid}', [PolicyTemplateController::class, 'update'])->middleware(['permission:ai.knowledge.manage', 'idempotency']);
+    Route::post('/knowledge/policy-drafts/{uuid}/approve', [PolicyTemplateController::class, 'approve'])->middleware(['permission:ai.knowledge.manage', 'permission:identity.membership.manage', 'idempotency']);
     Route::get('/knowledge/sources', [KnowledgeController::class, 'sources'])->middleware('permission:ai.knowledge.read');
     Route::post('/knowledge/sources', [KnowledgeController::class, 'createSource'])->middleware(['permission:ai.knowledge.manage', 'idempotency']);
     Route::post('/knowledge/sources/{sourceUuid}/documents', [KnowledgeController::class, 'createDocument'])->middleware(['permission:ai.knowledge.manage', 'idempotency']);

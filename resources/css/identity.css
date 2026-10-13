@@ -109,3 +109,7 @@ body,.teami-provider{font-family:'Almarai','Segoe UI',sans-serif;font-synthesis:
 .chat-composer { display:grid; gap:12px; padding-top:20px; }
 .chat-welcome { display:flex; flex-direction:column; gap:12px; padding:20px; }
 @media(max-width:760px) { .chat-layout { grid-template-columns:1fr; } .chat-history { max-height:200px; overflow:auto; } .chat-message { max-width:100%; } }
+
+.policy-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(250px,1fr)); gap:16px; }
+.policy-grid h2 { font-size:19px; }
+.policy-grid p { line-height:1.8; }
