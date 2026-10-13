@@ -1,3 +1,4 @@
+import { FormExcelImport } from './FormExcelImport';
 import React, { useEffect, useRef, useState } from 'react';
 import {
     Avatar, Badge, Button, Card, Checkbox, Dialog, DialogActions, DialogBody, DialogContent,
@@ -135,11 +136,13 @@ export function Pager({ meta, setPage }) {
 export function FormDialog({ title, fields, initial = {}, save, onClose, onSaved, success, description, deriveValues }) {
     const [values, setValues] = useState(() => Object.fromEntries(fields.map(f => [f.name, initial[f.name] ?? f.default ?? ''])));
     const [busy, setBusy] = useState(false), [error, setError] = useState('');
+    const [excelMode, setExcelMode] = useState(false);
+    const allowExcel = /^إضافة/.test(title) && typeof save === 'function' && !fields.some(f => ['password','file','permissions'].includes(f.type));
     const inFlight = useRef(false), lastAttempt = useRef({ signature: '', key: '' });
     const change = (field, value) => setValues(previous => { const next = { ...previous, [field.name]: value, ...Object.fromEntries((field.clearOnChange ?? []).map(name => [name, ''])) }; return deriveValues ? deriveValues(next, field.name) : next; });
     async function submit(event) {
         event.preventDefault();
-        if (inFlight.current) return;
+        if (inFlight.current || excelMode) return;
         const data = Object.fromEntries(fields.map(f => [f.name, values[f.name] === '' ? (f.nullable ? null : undefined) : f.boolean ? values[f.name] === 'true' : values[f.name]]).filter(([, value]) => value !== undefined));
         inFlight.current = true; setBusy(true); setError('');
         try {
@@ -151,18 +154,18 @@ export function FormDialog({ title, fields, initial = {}, save, onClose, onSaved
         catch (error) { setError(error.message); }
         finally { inFlight.current = false; setBusy(false); }
     }
-    return <Dialog open onOpenChange={(_, data) => { if (!data.open && !inFlight.current) onClose(); }}>
+    return <Dialog open onOpenChange={(_, data) => { if (!data.open && !inFlight.current && !busy) onClose(); }}>
         <DialogSurface className="form-dialog"><form onSubmit={submit}>
             <DialogBody><DialogTitle action={<Button appearance="subtle" icon={<Dismiss24Regular />} aria-label="إغلاق" disabled={busy} onClick={onClose} />}>{title}</DialogTitle>
-                <DialogContent>{description && <p className="muted form-description">{description}</p>}<div className="form-grid">{fields.map(f => {
+                <DialogContent>{allowExcel && <div className="actions"><Button type="button" disabled={busy} appearance={!excelMode ? 'primary' : 'secondary'} onClick={() => setExcelMode(false)}>إضافة يدويًا</Button><Button type="button" disabled={busy} appearance={excelMode ? 'primary' : 'secondary'} onClick={() => setExcelMode(true)}>رفع Excel</Button></div>}{excelMode ? <FormExcelImport fields={fields} initial={initial} deriveValues={deriveValues} save={save} onSaved={onSaved} onBusyChange={setBusy}/> : <>{description && <p className="muted form-description">{description}</p>}<div className="form-grid">{fields.map(f => {
                     const common = { name: f.name, value: values[f.name], required: !!f.required, disabled: busy || f.disabled };
                     const choices = typeof f.options === 'function' ? f.options(values) : f.options;
                     if (f.type === 'permissions') return <fieldset key={f.name} className="permission-fieldset span-two"><legend>{f.label}</legend><div className="permission-options">{(choices ?? []).map(o => <Checkbox key={o.value} label={o.label} checked={(values[f.name] ?? []).includes(o.value)} disabled={busy} onChange={(_, d) => change(f, d.checked ? [...(values[f.name] ?? []), o.value] : (values[f.name] ?? []).filter(x => x !== o.value))} />)}</div></fieldset>;
                     return <Field key={f.name} label={f.label} required={f.required} hint={f.hint} className={f.wide ? 'span-two' : ''}>
                         {f.type === 'file' ? <input aria-label={f.label} name={f.name} type="file" accept={f.accept} required={!!f.required} disabled={busy} onChange={e => change(f, e.target.files[0] ?? '')} /> : f.type === 'permissions' ? <div className="permission-options">{(choices ?? []).map(o => <Checkbox key={o.value} label={o.label} checked={(values[f.name] ?? []).includes(o.value)} disabled={busy} onChange={(_, d) => change(f, d.checked ? [...(values[f.name] ?? []), o.value] : (values[f.name] ?? []).filter(x => x !== o.value))} />)}</div> : f.remote ? <RemoteSearchableSelect {...common} source={f.remote} onChange={e => change(f, e.target.value)} /> : choices ? <Select {...common} onChange={e => change(f, e.target.value)}>{!f.required || f.placeholder ? <option value="">{f.placeholder ?? 'بدون تحديد'}</option> : null}{choices.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}</Select> : f.type === 'textarea' ? <Textarea {...common} maxLength={f.maxLength} resize="vertical" onChange={(_, d) => change(f, d.value)} /> : <Input {...common} type={f.type ?? 'text'} min={f.min} max={f.max} step={f.step} maxLength={f.maxLength} onChange={(_, d) => change(f, d.value)} />}
                     </Field>;
-                })}</div>{error && <div className="form-message"><Notice intent="error">{error}</Notice></div>}</DialogContent>
-                <DialogActions><Button disabled={busy} onClick={onClose}>إلغاء</Button><Button appearance="primary" type="submit" disabled={busy} icon={busy ? <Spinner size="tiny" /> : undefined}>{busy ? 'جارٍ الحفظ…' : 'حفظ'}</Button></DialogActions>
+                })}</div>{error && <div className="form-message"><Notice intent="error">{error}</Notice></div>}</>}</DialogContent>
+                <DialogActions><Button disabled={busy} onClick={onClose}>إلغاء</Button>{!excelMode && <Button appearance="primary" type="submit" disabled={busy} icon={busy ? <Spinner size="tiny" /> : undefined}>{busy ? 'جارٍ الحفظ…' : 'حفظ'}</Button>}</DialogActions>
             </DialogBody>
         </form></DialogSurface>
     </Dialog>;

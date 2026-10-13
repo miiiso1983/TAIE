@@ -6,7 +6,7 @@ const ids = {
     leave: '55555555-5555-4555-8555-555555555555', customer: '66666666-6666-4666-8666-666666666666',
 };
 const allPermissions = ['hr.employee.read', 'hr.employee.create', 'hr.employee.update', 'hr.department.read', 'hr.position.read', 'hr.leave.read', 'hr.leave.create', 'hr.leave.manage', 'hr.leave.approve', 'hr.payroll.read', 'data.sensitive.read', 'sales.customer.read', 'sales.customer.create', 'sales.opportunity.read', 'ai.knowledge.read', 'ai.ask', 'billing.subscription.read', 'billing.usage.read'];
-async function fixture(page, { signedIn = true, permissions = allPermissions, mfa = false, failUpdateOnce = false, platformOwner = false, publicTrial = false, failSignupOnce = false, pricingPlans = null } = {}) {
+async function fixture(page, { signedIn = true, permissions = allPermissions, mfa = false, failUpdateOnce = false, platformOwner = false, publicTrial = false, failSignupOnce = false, pricingPlans = null, excelFailOnce = false } = {}) {
     const writes = [], errors = [];
     const department = { uuid: ids.department, name: 'المبيعات' }, position = { uuid: ids.position, title: 'مدير المبيعات', department };
     const employee = { uuid: ids.employee, employee_number: 'EMP-1', first_name: 'موظف', last_name: 'تجريبي', work_email: 'employee@example.test', employment_status: 'active', employment_type: 'full_time', hired_at: '2026-01-01', department, position };
@@ -17,6 +17,7 @@ async function fixture(page, { signedIn = true, permissions = allPermissions, mf
     let trialCreated=false;
     const platformPlans = [], platformSubscriptions = [];
     const chatMessages = [], policyDrafts = [];
+    let excelFailed = false;
     const policyTemplates = [{key:'leave',title:'سياسة طلب الإجازات',category:'الموارد البشرية',version:'1.0',notice:'قالب إرشادي',body:'الشركة: [اسم الشركة]. الإشعار: [مدة الإشعار]. يراجع المسؤول السياسة قبل تطبيقها.',references:[]}];
     const platformTenants = [{uuid:'platform-company',name:'شركة منصة تجريبية',slug:'fixture-company',status:'active',users_count:1}];
     const type = { uuid: ids.type, code: 'ANNUAL', name: 'سنوية', status: 'active', requires_approval: true, annual_allowance_days: '20.00' };
@@ -49,6 +50,12 @@ async function fixture(page, { signedIn = true, permissions = allPermissions, mf
         if (path === '/platform/plans' && request.method() === 'GET') return fulfill({data:platformPlans});
         if (path === '/platform/subscriptions' && request.method() === 'GET') return fulfill({data:platformSubscriptions,current_page:1,last_page:1,total:platformSubscriptions.length});
         if (path === '/platform/tenants' && request.method() === 'GET') return fulfill({data:platformTenants,current_page:1,last_page:1,total:platformTenants.length});
+        if (path === '/forms/import-preview') {
+            const employeeFile = request.postData().includes('employee_number');
+            const header = employeeFile ? ['employee_number','first_name','last_name'] : ['customer_number','name'];
+            const cells = employeeFile ? [['BULK1','Ali','One'],['BULK2','Sara','Two']] : [['BULK1','شركة أولى'],['BULK2','شركة ثانية']];
+            return fulfill({data:{header,sheets:[{index:0,name:'Data',columns:header}],rows:cells.map((cells,i)=>({line:i+2,cells}))}});
+        }
         if (request.method() !== 'GET') {
             const data = request.postDataJSON(); writes.push({ path, data, method: request.method(), key: request.headers()['idempotency-key'] });
             if (path === '/public/trials') {if(failSignupOnce){failSignupOnce=false;return fulfill({message:'تعذّر الاتصال مؤقتًا'},503);}trialCreated=true;return fulfill({data:{tenant:{uuid:'99999999-9999-4999-8999-999999999999',slug:'trial-fixture',name:data.name},trial:{starts_at:new Date().toISOString(),ends_at:new Date(Date.now()+4*86400000).toISOString(),ai_requests_total:25,users:5}}},201);}
@@ -90,6 +97,7 @@ async function fixture(page, { signedIn = true, permissions = allPermissions, mf
                 if (data.position_uuid !== undefined) employee.position = data.position_uuid ? position : null;
                 return fulfill({ data: employee });
             }
+            if (path === '/sales/customers' && excelFailOnce && data.customer_number === 'BULK2' && !excelFailed) { excelFailed = true; return fulfill({message:'تعثر مؤقت'},503); }
             if (path === '/sales/customers') { customers.push({ ...data, uuid: 'new-customer' }); return fulfill({ data: customers.at(-1) }, 201); }
             if (path === '/hr/leave-types') { types.push({ ...data, uuid: 'new-type', status: 'active' }); return fulfill({ data: types.at(-1) }, 201); }
             if (path === '/hr/leave-requests') { leaves.push({ uuid: ids.leave, employee, leave_type: type, status: 'pending', ...data }); return fulfill({ data: leaves.at(-1) }, 201); }
@@ -761,4 +769,30 @@ test('policy templates remain drafts until explicit completed approval', async (
     await expect(page.getByLabel('نص السياسة')).toBeDisabled();
     expect(writes.filter(x=>x.path.endsWith('/approve'))).toHaveLength(1);
     expect(errors).toEqual([]);
+});
+
+
+test('Excel additions preview customers and retry only the failed row with its key', async ({page}) => {
+    const {writes,errors}=await fixture(page,{excelFailOnce:true});
+    await page.goto('/#customers'); await page.getByRole('button',{name:'إضافة عميل',exact:true}).click();
+    const dialog=page.getByRole('dialog');await dialog.getByRole('button',{name:'رفع Excel',exact:true}).click();
+    await dialog.getByLabel('ملف Excel أو CSV').setInputFiles({name:'customers.csv',mimeType:'text/csv',buffer:Buffer.from('customer_number,name\nBULK1,شركة أولى\nBULK2,شركة ثانية\n')});
+    await dialog.getByRole('button',{name:'فحص الملف ومعاينة الصفوف'}).click();
+    await expect(dialog.locator('.excel-preview')).toContainText('شركة أولى');
+    expect(writes.filter(x=>x.path==='/sales/customers')).toHaveLength(0);
+    await dialog.getByRole('checkbox',{name:/راجعت الصفوف/}).check();await dialog.getByRole('button',{name:'اعتماد وإضافة الصفوف'}).click();
+    await expect(dialog).toContainText('توقف الحفظ عند الصف 3');
+    await dialog.getByRole('button',{name:'اعتماد وإضافة الصفوف'}).click();
+    await expect(dialog).toHaveCount(0);
+    const calls=writes.filter(x=>x.path==='/sales/customers');expect(calls).toHaveLength(3);expect(calls[1].key).toBe(calls[2].key);expect(calls[0].data.type).toBe('organization');
+    expect(errors).toEqual([]);
+});
+
+test('Employee Excel addition uses the same creation workflow and defaults', async ({page}) => {
+    const {writes,errors}=await fixture(page);await page.goto('/#employees');await page.getByRole('button',{name:'إضافة موظف',exact:true}).click();
+    const dialog=page.getByRole('dialog');await dialog.getByRole('button',{name:'رفع Excel',exact:true}).click();
+    await dialog.getByLabel('ملف Excel أو CSV').setInputFiles({name:'employees.csv',mimeType:'text/csv',buffer:Buffer.from('employee_number,first_name,last_name\nBULK1,Ali,One\nBULK2,Sara,Two\n')});
+    await dialog.getByRole('button',{name:'فحص الملف ومعاينة الصفوف'}).click();
+    await dialog.getByRole('checkbox',{name:/راجعت الصفوف/}).check();await dialog.getByRole('button',{name:'اعتماد وإضافة الصفوف'}).click();
+    await expect(dialog).toHaveCount(0);const calls=writes.filter(x=>x.path==='/hr/employees');expect(calls).toHaveLength(2);expect(calls[0].data.first_name).toBe('Ali');expect(calls[0].data.employment_type).toBe('full_time');expect(errors).toEqual([]);
 });

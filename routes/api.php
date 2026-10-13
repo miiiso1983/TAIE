@@ -12,6 +12,7 @@ use App\Modules\Advisor\Http\Controllers\DataQualityController;
 use App\Modules\Advisor\Http\Controllers\DecisionController;
 use App\Modules\Advisor\Http\Controllers\ForecastEvaluationController;
 use App\Modules\Advisor\Http\Controllers\ForecastScheduleController;
+use App\Modules\Advisor\Http\Controllers\FormImportController;
 use App\Modules\Advisor\Http\Controllers\ImportController;
 use App\Modules\Advisor\Http\Controllers\MarketContextController;
 use App\Modules\Advisor\Http\Controllers\ProductForecastController;
@@ -270,6 +271,8 @@ Route::middleware(['throttle:api', 'auth:sanctum', 'tenant.resolve', 'tenant.mem
     Route::post('/knowledge/external-references/{key}/activate', [ExternalReferenceController::class, 'activate'])->middleware(['permission:ai.knowledge.manage', 'idempotency']);
     Route::post('/knowledge/external-references/{key}/disable', [ExternalReferenceController::class, 'disable'])->middleware(['permission:ai.knowledge.manage', 'idempotency']);
 
+    Route::post('/forms/import-template', [FormImportController::class, 'template'])->middleware('throttle:api');
+    Route::post('/forms/import-preview', [FormImportController::class, 'preview'])->middleware('throttle:api');
     Route::get('/knowledge/policy-templates', [PolicyTemplateController::class, 'catalog'])->middleware('permission:ai.knowledge.read');
     Route::get('/knowledge/policy-drafts', [PolicyTemplateController::class, 'index'])->middleware('permission:ai.knowledge.manage');
     Route::post('/knowledge/policy-drafts', [PolicyTemplateController::class, 'store'])->middleware(['permission:ai.knowledge.manage', 'idempotency']);

@@ -113,3 +113,6 @@ body,.teami-provider{font-family:'Almarai','Segoe UI',sans-serif;font-synthesis:
 .policy-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(250px,1fr)); gap:16px; }
 .policy-grid h2 { font-size:19px; }
 .policy-grid p { line-height:1.8; }
+.excel-preview { max-height:320px; overflow:auto; }
+.excel-preview table { width:100%; border-collapse:collapse; }
+.excel-preview td,.excel-preview th { border-bottom:1px solid var(--colorNeutralStroke2); text-align:start; padding:12px; overflow-wrap:anywhere; }
